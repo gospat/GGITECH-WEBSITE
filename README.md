@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GGI Tech Website
+
+This is the official website for GGI Tech, a division of GOSPAT GLOBAL INNOVATIONS LTD.
+Built with Next.js, Tailwind CSS, Framer Motion, and Three.js.
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/`: Main application code (Next.js App Router)
+  - `page.tsx`: Homepage assembly
+  - `layout.tsx`: Root layout with global styles
+  - `globals.css`: Global styles and Tailwind directives
+- `components/`: Reusable UI components
+  - `Hero.tsx`: 3D background and hero section
+  - `About.tsx`: About section with scroll animations
+  - `Services.tsx`: Services grid
+  - `Projects.tsx`: Project showcase
+  - `TechStack.tsx`: Technology stack display
+  - `Innovation.tsx`: Innovation lab section
+  - `WhyUs.tsx`: Why choose us section
+  - `Contact.tsx`: Contact form
+  - `Footer.tsx`: Footer with links
+  - `Navbar.tsx`: Responsive navigation bar
 
-## Learn More
+## Features
 
-To learn more about Next.js, take a look at the following resources:
+- **Dark Futuristic UI**: Custom Tailwind theme with glowing effects.
+- **Smooth Animations**: Powered by Framer Motion.
+- **3D Elements**: React Three Fiber integration in the Hero section.
+- **Responsive Design**: Fully optimized for mobile and desktop.
+- **Fast Loading**: Optimized with Next.js static generation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+To deploy to Vercel (recommended):
 
-## Deploy on Vercel
+1. Push this repository to GitHub.
+2. Import the project in Vercel.
+3. Vercel will automatically detect Next.js and deploy.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Customization
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Edit `tailwind.config.ts` to change colors.
+- Update `components/` to modify content.
