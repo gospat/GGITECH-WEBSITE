@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SpotlightCard from "@/components/SpotlightCard";
+import { SoftwareDevViz, SystemArchViz, Web3Viz, CloudViz } from "@/components/ServiceVisualizations";
 import { Code, Server, Database, Cloud, Shield, Globe, Cpu, Layers } from "lucide-react";
 
 const services = [
@@ -8,25 +9,29 @@ const services = [
     icon: <Code className="w-10 h-10 text-primary" />,
     title: "Software Development",
     description: "Custom web applications, enterprise platforms, and institutional systems using modern technologies and robust architecture.",
-    features: ["Custom Web Apps", "Enterprise Solutions", "Institutional Systems", "Secure Payment Platforms"]
+    features: ["Custom Web Apps", "Enterprise Solutions", "Institutional Systems", "Secure Payment Platforms"],
+    viz: <SoftwareDevViz />
   },
   {
     icon: <Server className="w-10 h-10 text-emerald-400" />,
     title: "System Architecture",
     description: "Designing the foundation that ensures platforms remain stable, scalable, and secure even as they grow.",
-    features: ["Backend System Design", "Database Architecture", "API Infrastructure", "Performance Optimization"]
+    features: ["Backend System Design", "Database Architecture", "API Infrastructure", "Performance Optimization"],
+    viz: <SystemArchViz />
   },
   {
     icon: <Globe className="w-10 h-10 text-purple-400" />,
     title: "Web3 Development",
     description: "Building decentralized applications, validator infrastructure, and blockchain-integrated platforms.",
-    features: ["Smart Contracts", "Validator Nodes", "DApps", "Crypto Infrastructure"]
+    features: ["Smart Contracts", "Validator Nodes", "DApps", "Crypto Infrastructure"],
+    viz: <Web3Viz />
   },
   {
     icon: <Cloud className="w-10 h-10 text-sky-400" />,
     title: "Cloud Infrastructure",
     description: "Designing and managing cloud infrastructure that powers mission-critical systems.",
-    features: ["Server Deployment", "Linux Administration", "Cloud Setup", "Automated Pipelines"]
+    features: ["Server Deployment", "Linux Administration", "Cloud Setup", "Automated Pipelines"],
+    viz: <CloudViz />
   }
 ];
 
@@ -64,12 +69,9 @@ export default function ServicesPage() {
                 </ul>
               </div>
               
-              <div className="flex-1 w-full">
-                <SpotlightCard className="aspect-video w-full flex items-center justify-center bg-white/5 border-white/10 group">
-                  <div className="text-center">
-                    <Layers className="w-16 h-16 text-gray-600 mb-4 mx-auto group-hover:text-primary transition-colors" />
-                    <p className="text-gray-500 font-mono text-sm">System Visualization</p>
-                  </div>
+              <div className="flex-1 w-full h-[400px]">
+                <SpotlightCard className="w-full h-full flex items-center justify-center bg-white/5 border-white/10 group overflow-hidden">
+                  {service.viz}
                 </SpotlightCard>
               </div>
             </div>
