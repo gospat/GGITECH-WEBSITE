@@ -9,7 +9,25 @@
 
 @layer base {
   body {
-    @apply bg-[var(--background)] text-[var(--foreground)];
+    @apply bg-[var(--background)] text-[var(--foreground)] font-sans;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+
+  h1 {
+    @apply tracking-tighter;
+    letter-spacing: -0.04em;
+  }
+
+  p {
+    @apply text-gray-300;
+    letter-spacing: 0.01em;
   }
 }
 
