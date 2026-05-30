@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, Check } from "lucide-react";
-import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 type CookieCategory = "essential" | "preferences" | "analytics" | "advertising";
 

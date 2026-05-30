@@ -10,10 +10,6 @@ export default function TechLabPage() {
       
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center mb-20">
-          <div className="inline-flex items-center space-x-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-8 backdrop-blur-sm">
-            <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse"></span>
-            <span className="text-sm font-medium text-gray-300">R&D Division</span>
-          </div>
           <h1 className="text-4xl md:text-6xl font-bold mb-6">The GGI Technology Lab</h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             Our commitment to continuous innovation. We research, prototype, and experiment with systems that shape the future.

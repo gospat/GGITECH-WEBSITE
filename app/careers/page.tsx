@@ -42,7 +42,7 @@ export default function CareersPage() {
             <Zap className="w-10 h-10 text-yellow-400 mb-6 group-hover:scale-110 transition-transform" />
             <h3 className="text-2xl font-bold mb-4">Innovation First</h3>
             <p className="text-gray-400 leading-relaxed">
-              We push the boundaries of what's possible, constantly experimenting with emerging technologies.
+              We push the boundaries of what&apos;s possible, constantly experimenting with emerging technologies.
             </p>
           </SpotlightCard>
           
@@ -85,7 +85,7 @@ export default function CareersPage() {
         </div>
         
         <div className="text-center bg-white/5 border border-white/10 rounded-3xl p-12">
-          <h2 className="text-3xl font-bold mb-6">Don't see a perfect fit?</h2>
+          <h2 className="text-3xl font-bold mb-6">Don&apos;t see a perfect fit?</h2>
           <p className="text-gray-400 max-w-2xl mx-auto mb-8">
             We are always interested in connecting with talented individuals. Send us your resume and tell us how you can contribute to our mission.
           </p>

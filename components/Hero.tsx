@@ -3,19 +3,9 @@
 import { motion } from "framer-motion";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { Canvas } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
+import dynamic from "next/dynamic";
 
-function Background3D() {
-  return (
-    <div className="absolute inset-0 z-0">
-      <Canvas>
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        <ambientLight intensity={0.5} />
-      </Canvas>
-    </div>
-  );
-}
+const Background3D = dynamic(() => import("./HeroBackground3D"), { ssr: false });
 
 export default function Hero() {
   return (
@@ -47,10 +37,10 @@ export default function Hero() {
             </Link>
             
             <Link
-              href="/contact"
+              href="/project-brief"
               className="group inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/5 transition-all duration-300"
             >
-              Start a Project
+              Submit a Project Brief
               <ChevronRight className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0" />
             </Link>
           </div>

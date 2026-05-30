@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SpotlightCard from "@/components/SpotlightCard";
 import { SoftwareDevViz, SystemArchViz, Web3Viz, CloudViz } from "@/components/ServiceVisualizations";
-import { Code, Server, Database, Cloud, Shield, Globe, Cpu, Layers } from "lucide-react";
+import { Code, Server, Cloud, Globe } from "lucide-react";
 
 const services = [
   {
@@ -83,8 +83,8 @@ export default function ServicesPage() {
           <p className="text-gray-400 max-w-2xl mx-auto mb-8">
             Whether you are developing a new digital platform, modernizing existing infrastructure, or exploring emerging technologies, our team is ready to help turn your vision into reality.
           </p>
-          <a href="/contact" className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-primary rounded-full hover:bg-blue-600 transition-all duration-300">
-            Start Your Project
+          <a href="/project-brief" className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-primary rounded-full hover:bg-blue-600 transition-all duration-300">
+            Submit a Project Brief
           </a>
         </div>
       </div>

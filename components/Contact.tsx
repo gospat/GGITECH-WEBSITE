@@ -30,7 +30,7 @@ export default function Contact() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
             <h2 className="text-sm font-semibold text-primary tracking-widest uppercase mb-4">
-              Let's Build the Future Together
+              Let&apos;s Build the Future Together
             </h2>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
               Start Your <br />
@@ -75,7 +75,7 @@ export default function Contact() {
                   <CheckCircle className="w-8 h-8 text-green-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
-                <p className="text-gray-400">Thank you for reaching out. We'll get back to you within 24 hours.</p>
+                <p className="text-gray-400">Thank you for reaching out. We&apos;ll get back to you within 24 hours.</p>
                 <button 
                   onClick={() => setIsSuccess(false)}
                   className="mt-6 text-primary hover:text-white transition-colors"

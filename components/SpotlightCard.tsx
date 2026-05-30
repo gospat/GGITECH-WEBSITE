@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, MouseEvent } from "react";
-import { motion } from "framer-motion";
 
 export default function SpotlightCard({
   children,

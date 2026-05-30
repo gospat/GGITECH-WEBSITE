@@ -1,7 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import SpotlightCard from "@/components/SpotlightCard";
-import { Users, Target, Rocket, Globe } from "lucide-react";
+import { Users, Target, Rocket } from "lucide-react";
 
 export default function AboutPage() {
   return (

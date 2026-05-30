@@ -52,10 +52,10 @@ export default function Navbar() {
                 </Link>
               ))}
               <Link
-                href="/contact"
+                href="/project-brief"
                 className="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-300"
               >
-                Start a Project
+                Project Brief
               </Link>
             </div>
           </div>
@@ -90,6 +90,13 @@ export default function Navbar() {
                   {item.name}
                 </Link>
               ))}
+              <Link
+                href="/project-brief"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block px-3 py-2 text-base font-medium text-white bg-primary/90 hover:bg-primary rounded-md"
+              >
+                Project Brief
+              </Link>
             </div>
           </motion.div>
         )}

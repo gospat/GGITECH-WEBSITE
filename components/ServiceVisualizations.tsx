@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Server, Database, Globe, Smartphone, ShieldCheck, Cpu, Code, Layers, Box, Link as LinkIcon, Cloud, Lock } from "lucide-react";
+import { Server, Database, Globe, Smartphone, ShieldCheck, Cpu, Code, Layers, Box, Link as LinkIcon, Cloud } from "lucide-react";
 
 // --- 1. Software Development Visualization (Code Building) ---
 export function SoftwareDevViz() {
@@ -90,7 +90,7 @@ export function SystemArchViz() {
 
       {/* Connections */}
       {[0, 72, 144, 216, 288].map((angle, i) => (
-        <Connection key={i} angle={angle} />
+        <Connection key={i} angle={angle} delayIndex={i} />
       ))}
     </div>
   );
@@ -114,13 +114,13 @@ function ArchNode({ icon, angle, delay }: { icon: React.ReactNode, angle: number
   );
 }
 
-function Connection({ angle }: { angle: number }) {
+function Connection({ angle, delayIndex }: { angle: number; delayIndex: number }) {
   return (
     <div className="absolute top-1/2 left-1/2 w-[120px] h-[2px] origin-left -translate-y-1/2" style={{ transform: `rotate(${angle}deg) translateY(-50%)` }}>
       <div className="w-full h-full bg-gradient-to-r from-primary/50 to-transparent opacity-30" />
       <motion.div
         animate={{ left: ["0%", "100%"], opacity: [0, 1, 0] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: Math.random() * 2 }}
+        transition={{ duration: 2, repeat: Infinity, ease: "linear", delay: delayIndex * 0.35 }}
         className="absolute top-0 w-1.5 h-1.5 rounded-full bg-white"
       />
     </div>
