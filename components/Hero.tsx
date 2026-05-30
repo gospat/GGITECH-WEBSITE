@@ -8,9 +8,18 @@ import dynamic from "next/dynamic";
 const Background3D = dynamic(() => import("./HeroBackground3D"), { ssr: false });
 
 export default function Hero() {
+  const enable3D = process.env.NEXT_PUBLIC_ENABLE_3D === "true";
+
   return (
     <section className="relative h-screen flex items-center justify-center overflow-hidden bg-background">
-      <Background3D />
+      {enable3D ? (
+        <Background3D />
+      ) : (
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(circle_at_70%_60%,rgba(34,197,94,0.18),transparent_55%)]" />
+          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px]" />
+        </div>
+      )}
       
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <motion.div

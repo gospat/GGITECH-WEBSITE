@@ -3,22 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3213",
+    "dev": "next dev --webpack -p 3213",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@react-three/drei": "^9.102.6",
-    "@react-three/fiber": "^8.15.19",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "clsx": "^2.1.0",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.344.0",
     "next": "^16.2.6",
     "nodemailer": "^8.0.7",
     "pdf-lib": "^1.17.1",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "tailwind-merge": "^2.2.1",
     "three": "^0.162.0"
   },
