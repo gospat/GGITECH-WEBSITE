@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Mail, MapPin, Send, Loader2, CheckCircle } from "lucide-react";
 import { useState, FormEvent } from "react";
+import Link from "next/link";
 
 export default function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,13 +13,11 @@ export default function Contact() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     setIsSubmitting(false);
     setIsSuccess(true);
     
-    // Reset success message after 5 seconds
     setTimeout(() => setIsSuccess(false), 5000);
   };
 
@@ -39,6 +38,22 @@ export default function Contact() {
             <p className="text-gray-400 text-lg mb-8 leading-relaxed">
               Technology has the power to transform industries, improve services, and create entirely new possibilities. At GGI Tech, we partner with organizations that are ready to embrace innovation and build systems designed for the future.
             </p>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-10">
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                For the fastest and most accurate response, include the goal of your project, expected users, key features, and any timeline or budget constraints. If you already have clear requirements, use our
+                {" "}
+                <Link href="/project-brief" className="text-primary hover:text-white transition-colors font-medium">
+                  Project Brief form
+                </Link>
+                {" "}
+                so we can scope your request properly.
+              </p>
+              <ul className="space-y-2 text-gray-300">
+                <li className="flex items-start"><span className="text-primary mr-3">•</span>What problem the system solves and who it is for.</li>
+                <li className="flex items-start"><span className="text-primary mr-3">•</span>Any must-have integrations (payments, auth, data sources).</li>
+                <li className="flex items-start"><span className="text-primary mr-3">•</span>Security or compliance needs (PII, finance, healthcare, audit logs).</li>
+              </ul>
+            </div>
             
             <div className="space-y-6">
               <div className="flex items-center space-x-4">

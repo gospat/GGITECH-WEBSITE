@@ -8,29 +8,61 @@ const services = [
   {
     icon: <Code className="w-10 h-10 text-primary" />,
     title: "Software Development",
-    description: "Custom web applications, enterprise platforms, and institutional systems using modern technologies and robust architecture.",
-    features: ["Custom Web Apps", "Enterprise Solutions", "Institutional Systems", "Secure Payment Platforms"],
+    description:
+      "We design and build powerful digital platforms tailored to real operational needs. From enterprise web apps to institutional portals, we deliver systems engineered for performance, security, and long-term maintainability.",
+    features: [
+      "Custom Web Application Development",
+      "Enterprise Software Solutions",
+      "Institutional & Administrative Systems",
+      "Secure Payment Platform Integrations",
+      "Database-Driven Platforms",
+      "API Development & Integration",
+    ],
     viz: <SoftwareDevViz />
   },
   {
     icon: <Server className="w-10 h-10 text-emerald-400" />,
     title: "System Architecture",
-    description: "Designing the foundation that ensures platforms remain stable, scalable, and secure even as they grow.",
-    features: ["Backend System Design", "Database Architecture", "API Infrastructure", "Performance Optimization"],
+    description:
+      "Building reliable software begins with strong architecture. We design backend foundations that remain stable under growth, handle complex workflows, and protect sensitive data with secure-by-design patterns.",
+    features: [
+      "Backend System Design",
+      "Database Architecture & Data Modeling",
+      "API Infrastructure & Service Boundaries",
+      "Scalable Platform Design",
+      "Secure Data Handling Systems",
+      "Performance Optimization & Caching",
+    ],
     viz: <SystemArchViz />
   },
   {
     icon: <Globe className="w-10 h-10 text-purple-400" />,
     title: "Web3 Development",
-    description: "Building decentralized applications, validator infrastructure, and blockchain-integrated platforms.",
-    features: ["Smart Contracts", "Validator Nodes", "DApps", "Crypto Infrastructure"],
+    description:
+      "We build decentralized applications, validator infrastructure, and blockchain-integrated platforms with an engineering-first approach: secure key management, reliable deployments, and production monitoring.",
+    features: [
+      "Smart Contract Development",
+      "Validator Node Infrastructure",
+      "Blockchain Integrations for Applications",
+      "Decentralized Application Development (DApps)",
+      "Crypto Infrastructure & Tooling",
+      "Security Reviews & Operational Runbooks",
+    ],
     viz: <Web3Viz />
   },
   {
     icon: <Cloud className="w-10 h-10 text-sky-400" />,
     title: "Cloud Infrastructure",
-    description: "Designing and managing cloud infrastructure that powers mission-critical systems.",
-    features: ["Server Deployment", "Linux Administration", "Cloud Setup", "Automated Pipelines"],
+    description:
+      "Modern platforms require reliable infrastructure for uptime, performance, and security. We design and manage cloud infrastructure that powers mission-critical systems with clear monitoring and automated delivery.",
+    features: [
+      "Server Deployment & Configuration",
+      "Linux Server Administration",
+      "Cloud Platform Setup (AWS/Azure/GCP)",
+      "Monitoring & Performance Optimization",
+      "Secure Hosting Infrastructure",
+      "Automated Deployment Pipelines (CI/CD)",
+    ],
     viz: <CloudViz />
   }
 ];
@@ -45,6 +77,8 @@ export default function ServicesPage() {
           <h1 className="text-4xl md:text-6xl font-bold mb-6">Our Services</h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             At GGI Tech, we design and build powerful digital platforms tailored to the needs of modern organizations.
+            Every system we deliver is engineered for reliability, security, and scalability—so it keeps working as your
+            user base and operational complexity grow.
           </p>
         </div>
         
@@ -76,6 +110,58 @@ export default function ServicesPage() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-32 grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-10">
+            <h2 className="text-3xl font-bold mb-6">How We Deliver</h2>
+            <p className="text-gray-400 leading-relaxed mb-8">
+              Our delivery process is designed to reduce risk and keep projects predictable. We align on scope early,
+              validate assumptions with milestones, and ship in increments with clear quality gates.
+            </p>
+            <div className="space-y-5">
+              {[
+                { step: "01", title: "Discovery", desc: "Requirements capture, constraints mapping, and success metrics." },
+                { step: "02", title: "System Design", desc: "Architecture, data model, security boundaries, and delivery plan." },
+                { step: "03", title: "Build", desc: "Implementation with testing, code review discipline, and performance focus." },
+                { step: "04", title: "Launch", desc: "Deployment automation, monitoring, and safe rollout." },
+                { step: "05", title: "Support", desc: "Maintenance, improvements, and operational continuity." },
+              ].map((s) => (
+                <div key={s.step} className="flex gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary font-semibold">
+                    {s.step}
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">{s.title}</div>
+                    <div className="text-gray-400 text-sm leading-relaxed">{s.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-10">
+            <h2 className="text-3xl font-bold mb-6">What You Receive</h2>
+            <p className="text-gray-400 leading-relaxed mb-8">
+              We do not only ship features. We ship a system you can operate confidently: clear architecture, reliable
+              deployments, and documentation that makes future work easier.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                "Architecture and implementation aligned to your goals",
+                "Security-first engineering and safe data handling",
+                "Performance tuning and scalability planning",
+                "Deployment automation and environment discipline",
+                "Monitoring and operational visibility",
+                "Documentation for handover and long-term maintenance",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-2xl p-4">
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary mt-2" />
+                  <div className="text-gray-300 text-sm leading-relaxed">{item}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
         
         <div className="mt-32 text-center bg-white/5 border border-white/10 rounded-3xl p-12">

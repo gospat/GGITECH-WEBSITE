@@ -35,6 +35,11 @@ export default function CareersPage() {
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             At GGI Tech, we believe innovation thrives in an environment that encourages creativity, curiosity, and continuous learning.
           </p>
+          <p className="text-gray-400 max-w-3xl mx-auto mt-6 leading-relaxed">
+            We build systems that have to work in the real world: institutional platforms, secure digital infrastructure, and modern web
+            experiences built with rigorous engineering practices. If you care about reliability, clean architecture, and shipping work you
+            can stand behind, you will feel at home here.
+          </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
@@ -81,6 +86,37 @@ export default function CareersPage() {
                 </a>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-20">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+            <h2 className="text-2xl font-bold mb-4">What You’ll Work On</h2>
+            <p className="text-gray-400 leading-relaxed mb-6">
+              Work is driven by real needs: performance under load, secure data handling, predictable deployments, and systems that remain
+              maintainable long after launch. We value engineers who can reason about trade-offs and design for reliability, not just quick
+              feature delivery.
+            </p>
+            <ul className="space-y-3 text-gray-300">
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Backend services and APIs with clear boundaries and observability.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Modern web apps with thoughtful UX and strong accessibility fundamentals.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Infrastructure automation, monitoring, and incident-ready operations.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Applied research prototypes from the Technology Lab that can be productionized.</li>
+            </ul>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+            <h2 className="text-2xl font-bold mb-4">How Our Hiring Works</h2>
+            <p className="text-gray-400 leading-relaxed mb-6">
+              We keep hiring structured and respectful. We aim for a process that evaluates real engineering ability, communication, and
+              judgment, without unnecessary loops.
+            </p>
+            <ul className="space-y-3 text-gray-300">
+              <li className="flex items-start"><span className="text-primary mr-3">1.</span>Intro conversation to align on role expectations and your interests.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">2.</span>Technical discussion focused on architecture, trade-offs, and problem solving.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">3.</span>Practical review (portfolio, code samples, or a small scoped exercise if needed).</li>
+              <li className="flex items-start"><span className="text-primary mr-3">4.</span>Final conversation about collaboration, ownership, and project fit.</li>
+            </ul>
           </div>
         </div>
         

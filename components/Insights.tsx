@@ -4,33 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import SpotlightCard from "./SpotlightCard";
-
-const insights = [
-  {
-    title: "The Future of Blockchain in Institutional Banking",
-    excerpt: "How decentralized ledgers are revolutionizing settlement layers for major financial institutions.",
-    date: "March 15, 2026",
-    author: "GGI Research",
-    category: "Blockchain",
-    link: "#",
-  },
-  {
-    title: "Scaling Node.js Architecture for Millions of Users",
-    excerpt: "Best practices for building resilient, high-throughput backend systems using Node.js and Microservices.",
-    date: "March 10, 2026",
-    author: "Engineering Team",
-    category: "Engineering",
-    link: "#",
-  },
-  {
-    title: "Securing Digital Infrastructure in the Age of AI",
-    excerpt: "New cybersecurity paradigms required to protect enterprise data from AI-driven threats.",
-    date: "March 05, 2026",
-    author: "Security Ops",
-    category: "Security",
-    link: "#",
-  },
-];
+import { blogPostsMeta } from "@/lib/blog/metadata";
 
 export default function Insights() {
   return (
@@ -55,38 +29,40 @@ export default function Insights() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {insights.map((post, index) => (
+          {blogPostsMeta.slice(0, 3).map((post, index) => (
             <motion.div
-              key={index}
+              key={post.slug}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ delay: index * 0.1 }}
             >
-              <SpotlightCard className="p-8 h-full flex flex-col group">
-                <div className="mb-6">
-                  <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20 mb-4">
-                    {post.category}
-                  </span>
-                  <h4 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                    {post.title}
-                  </h4>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {post.excerpt}
-                  </p>
-                </div>
-                
-                <div className="mt-auto flex items-center justify-between text-xs text-gray-500 border-t border-white/10 pt-4">
-                  <div className="flex items-center">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {post.date}
+              <Link href={`/blog/${post.slug}`} className="block h-full">
+                <SpotlightCard className="p-8 h-full flex flex-col group">
+                  <div className="mb-6">
+                    <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20 mb-4">
+                      {post.category}
+                    </span>
+                    <h4 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3">
+                      {post.excerpt}
+                    </p>
                   </div>
-                  <div className="flex items-center">
-                    <User className="w-3 h-3 mr-1" />
-                    {post.author}
+                  
+                  <div className="mt-auto flex items-center justify-between text-xs text-gray-500 border-t border-white/10 pt-4">
+                    <div className="flex items-center">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {post.date}
+                    </div>
+                    <div className="flex items-center">
+                      <User className="w-3 h-3 mr-1" />
+                      {post.author}
+                    </div>
                   </div>
-                </div>
-              </SpotlightCard>
+                </SpotlightCard>
+              </Link>
             </motion.div>
           ))}
         </div>

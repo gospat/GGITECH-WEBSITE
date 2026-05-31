@@ -57,6 +57,36 @@ export default function TechLabPage() {
             </p>
           </SpotlightCard>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+            <h2 className="text-3xl font-bold mb-4">How the Lab Operates</h2>
+            <p className="text-gray-400 text-lg leading-relaxed mb-6">
+              The Technology Lab is where we pressure-test ideas before they become production systems. We prototype quickly, measure
+              performance and reliability, and document the outcomes. The goal is not novelty for its own sake—it&apos;s practical advantage:
+              reducing risk, building better primitives, and identifying architectures that hold up under real constraints.
+            </p>
+            <ul className="space-y-3 text-gray-300">
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Problem framing: define the system goal, constraints, and failure modes.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Prototype: build minimal systems to validate assumptions and integration paths.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Measure: baseline latency, throughput, cost, and operational complexity.</li>
+              <li className="flex items-start"><span className="text-primary mr-3">•</span>Productionize: turn learnings into patterns, runbooks, and repeatable delivery.</li>
+            </ul>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
+            <h2 className="text-3xl font-bold mb-4">Responsible Innovation</h2>
+            <p className="text-gray-400 text-lg leading-relaxed mb-6">
+              We treat security and privacy as core research constraints. Experimental work is evaluated for data minimization, access
+              control boundaries, and operational safety. When we explore AI-driven workflows, we focus on transparency, auditability,
+              and human oversight—especially in contexts where systems impact people and institutions.
+            </p>
+            <p className="text-gray-400 text-lg leading-relaxed">
+              If you are interested in collaboration, research partnerships, or deploying production-grade versions of these systems,
+              reach out through the contact page or submit a detailed project brief.
+            </p>
+          </div>
+        </div>
       </div>
       
       <Footer />
