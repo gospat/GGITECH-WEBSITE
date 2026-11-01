@@ -10,6 +10,9 @@ export const blogPostsMeta: BlogPostMeta[] = [
     author: "GGI Engineering",
     category: "Systems",
     readingTimeMinutes: 16,
+    coverImageSrc: "/images/blog/nodejs-scaling.jpg",
+    coverAlt:
+      "Illustration of a scalable Node.js architecture with observability and infrastructure layers",
   },
   {
     slug: "web3-validator-infrastructure-technical-playbook",
@@ -20,6 +23,8 @@ export const blogPostsMeta: BlogPostMeta[] = [
     author: "GGI DevOps",
     category: "Web3",
     readingTimeMinutes: 15,
+    coverImageSrc: "/images/blog/web3-validator.jpg",
+    coverAlt: "Illustration of Web3 validator infrastructure and monitoring systems",
   },
   {
     slug: "cloud-native-beyond-lift-and-shift",
@@ -30,6 +35,8 @@ export const blogPostsMeta: BlogPostMeta[] = [
     author: "GGI Cloud",
     category: "Cloud",
     readingTimeMinutes: 15,
+    coverImageSrc: "/images/blog/cloud-native.jpg",
+    coverAlt: "Illustration of cloud-native architecture, CI/CD, and managed infrastructure",
   },
   {
     slug: "securing-digital-infrastructure-in-the-age-of-ai",
@@ -40,6 +47,7 @@ export const blogPostsMeta: BlogPostMeta[] = [
     author: "GGI Security",
     category: "Security",
     readingTimeMinutes: 16,
+    coverImageSrc: "/images/blog/security-ai.jpg",
+    coverAlt: "Illustration of cybersecurity monitoring and threat modeling in the AI era",
   },
 ];
-

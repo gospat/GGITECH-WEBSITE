@@ -23,4 +23,3 @@ export function getMailEnv() {
     officialBriefEmail: required("OFFICIAL_BRIEF_EMAIL"),
   };
 }
-

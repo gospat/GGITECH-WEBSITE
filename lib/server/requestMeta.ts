@@ -12,4 +12,3 @@ export function getUserAgent(req: NextRequest): string | undefined {
   const ua = req.headers.get("user-agent");
   return ua ? ua.slice(0, 300) : undefined;
 }
-

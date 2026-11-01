@@ -3,24 +3,35 @@
 @tailwind utilities;
 
 :root {
-  --background: #0B0F1A;
-  --foreground: #FFFFFF;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji",
-    "Segoe UI Emoji";
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --background: #0b0f1a;
+  --foreground: #ffffff;
+  --nav-height: 5rem;
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: var(--nav-height);
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-[var(--background)] text-[var(--foreground)] font-sans;
     letter-spacing: -0.01em;
     line-height: 1.6;
+    overflow-x: hidden;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
     letter-spacing: -0.03em;
     line-height: 1.2;
+    text-wrap: balance;
   }
 
   h1 {
@@ -32,17 +43,28 @@
     @apply text-gray-300;
     letter-spacing: 0.01em;
   }
+
+  /* Anchor targets must clear the fixed navigation bar. */
+  [id] {
+    scroll-margin-top: calc(var(--nav-height) + 1rem);
+  }
+
+  :focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    border-radius: 0.125rem;
+  }
 }
 
 @layer utilities {
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400;
   }
-  
+
   .glow {
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
   }
-  
+
   .glow-text {
     text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
   }
@@ -54,14 +76,37 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F1A;
+  background: #0b0f1a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3B82F6;
+  background: #3b82f6;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2563EB;
+  background: #2563eb;
+}
+
+/* Respect the operating system's reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  nav,
+  footer {
+    display: none !important;
+  }
 }

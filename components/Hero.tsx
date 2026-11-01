@@ -1,64 +1,102 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 
-const Background3D = dynamic(() => import("./HeroBackground3D"), { ssr: false });
+const highlights = [
+  "Institutional Platforms",
+  "Payment Infrastructure",
+  "Cloud & DevOps",
+  "Blockchain Systems",
+];
 
 export default function Hero() {
-  const enable3D = process.env.NEXT_PUBLIC_ENABLE_3D === "true";
+  const reduceMotion = useReducedMotion();
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden bg-background">
-      {enable3D ? (
-        <Background3D />
-      ) : (
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(circle_at_70%_60%,rgba(34,197,94,0.18),transparent_55%)]" />
-          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px]" />
-        </div>
-      )}
-      
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <section className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-background px-4 pb-20 pt-32 sm:px-6 lg:px-8">
+      <div aria-hidden="true" className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.25),transparent_50%),radial-gradient(circle_at_70%_60%,rgba(34,197,94,0.18),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:48px_48px] opacity-20" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-5xl text-center">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: reduceMotion ? 0 : 0.8 }}
         >
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">
-            Engineering the <br />
-            <span className="text-primary glow-text">Digital Infrastructure</span> of Tomorrow
-          </h1>
-          
-          <p className="mt-6 text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            GGI Tech, a technology division of GOSPAT GLOBAL INNOVATIONS LTD, builds secure, scalable, and intelligent digital systems for institutions, businesses, and emerging technologies.
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-gray-300 sm:text-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />A Division of
+            GOSPAT Global Innovations Ltd
           </p>
-          
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link
-              href="/technology-lab"
-              className="group relative inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-primary rounded-full overflow-hidden transition-all duration-300 hover:bg-blue-600 hover:scale-105 glow"
-            >
-              <span className="mr-2">Explore Our Technology</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            
+
+          <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+            <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+              Engineering the
+            </span>
+            <br />
+            <span className="text-gradient glow-text">Digital Infrastructure</span>
+            <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+              {" "}
+              of Tomorrow
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-gray-400 sm:text-lg">
+            We design and build secure, scalable platforms for institutions, businesses, and
+            emerging technologies — from university portals and payment systems to cloud
+            infrastructure and blockchain networks.
+          </p>
+
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
               href="/project-brief"
-              className="group inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/5 transition-all duration-300"
+              className="group inline-flex w-full items-center justify-center rounded-full bg-primary px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-blue-600 hover:shadow-[0_0_30px_rgba(59,130,246,0.45)] sm:w-auto"
             >
-              Submit a Project Brief
-              <ChevronRight className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0" />
+              Start a Project
+              <ArrowRight
+                aria-hidden="true"
+                className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1"
+              />
+            </Link>
+
+            <Link
+              href="/services"
+              className="group inline-flex w-full items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:border-white/40 hover:bg-white/5 sm:w-auto"
+            >
+              Explore Our Services
+              <ChevronRight
+                aria-hidden="true"
+                className="ml-2 h-4 w-4 opacity-60 transition-transform group-hover:translate-x-1 group-hover:opacity-100"
+              />
             </Link>
           </div>
+
+          <ul className="mx-auto mt-12 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-3">
+            {highlights.map((item) => (
+              <li
+                key={item}
+                className="flex items-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:text-sm"
+              >
+                <span className="mr-2 h-1 w-1 rounded-full bg-primary" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </motion.div>
       </div>
 
-      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center">
-          <div className="w-1 h-2 bg-primary rounded-full mt-2"></div>
+      <div
+        aria-hidden="true"
+        className={`absolute bottom-8 left-1/2 hidden -translate-x-1/2 sm:block ${
+          reduceMotion ? "" : "animate-bounce"
+        }`}
+      >
+        <div className="flex h-10 w-6 justify-center rounded-full border-2 border-white/20">
+          <div className="mt-2 h-2 w-1 rounded-full bg-primary" />
         </div>
       </div>
     </section>

@@ -6,6 +6,8 @@ export type BlogPostMeta = {
   author: string;
   category: string;
   readingTimeMinutes: number;
+  coverImageSrc: string;
+  coverAlt: string;
 };
 
 export type BlogBlock =
@@ -17,4 +19,3 @@ export type BlogBlock =
 export type BlogPost = BlogPostMeta & {
   blocks: BlogBlock[];
 };
-

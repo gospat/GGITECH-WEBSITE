@@ -143,7 +143,8 @@ export default function ProjectBriefForm() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Brief Submitted</h2>
           <p className="text-gray-400 max-w-xl">
-            Thank you. A confirmation has been sent to your email, and our team has received your project brief.
+            Thank you. A confirmation has been sent to your email, and our team has received your
+            project brief.
           </p>
           <button
             onClick={() => {
@@ -167,7 +168,9 @@ export default function ProjectBriefForm() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5" />
               <div className="text-sm">
-                <div className="text-red-200 font-medium">{error || "Please fix the issues below:"}</div>
+                <div className="text-red-200 font-medium">
+                  {error || "Please fix the issues below:"}
+                </div>
                 {errors.length > 0 && (
                   <ul className="mt-2 text-red-200/80 list-disc pl-5 space-y-1">
                     {errors.map((m) => (
@@ -196,7 +199,12 @@ export default function ProjectBriefForm() {
                 required
                 className={inputBase}
                 value={form.business.businessName}
-                onChange={(e) => setForm((p) => ({ ...p, business: { ...p.business, businessName: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    business: { ...p.business, businessName: e.target.value },
+                  }))
+                }
               />
             </div>
             <div>
@@ -207,7 +215,9 @@ export default function ProjectBriefForm() {
                 id="location"
                 className={inputBase}
                 value={form.business.location}
-                onChange={(e) => setForm((p) => ({ ...p, business: { ...p.business, location: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, business: { ...p.business, location: e.target.value } }))
+                }
               />
             </div>
           </div>
@@ -223,7 +233,10 @@ export default function ProjectBriefForm() {
               className={`${inputBase} resize-none`}
               value={form.business.businessDescription}
               onChange={(e) =>
-                setForm((p) => ({ ...p, business: { ...p.business, businessDescription: e.target.value } }))
+                setForm((p) => ({
+                  ...p,
+                  business: { ...p.business, businessDescription: e.target.value },
+                }))
               }
             />
           </div>
@@ -237,7 +250,12 @@ export default function ProjectBriefForm() {
               rows={3}
               className={`${inputBase} resize-none`}
               value={form.business.targetAudience}
-              onChange={(e) => setForm((p) => ({ ...p, business: { ...p.business, targetAudience: e.target.value } }))}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  business: { ...p.business, targetAudience: e.target.value },
+                }))
+              }
             />
           </div>
         </div>
@@ -256,7 +274,9 @@ export default function ProjectBriefForm() {
                 placeholder="Informational, E-commerce, Booking, Portfolio, Blog..."
                 className={inputBase}
                 value={form.goals.mainPurpose}
-                onChange={(e) => setForm((p) => ({ ...p, goals: { ...p.goals, mainPurpose: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, goals: { ...p.goals, mainPurpose: e.target.value } }))
+                }
               />
             </div>
             <div>
@@ -268,7 +288,12 @@ export default function ProjectBriefForm() {
                 placeholder="Contact you, buy products, register, book..."
                 className={inputBase}
                 value={form.goals.desiredUserActions}
-                onChange={(e) => setForm((p) => ({ ...p, goals: { ...p.goals, desiredUserActions: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    goals: { ...p.goals, desiredUserActions: e.target.value },
+                  }))
+                }
               />
             </div>
           </div>
@@ -276,7 +301,9 @@ export default function ProjectBriefForm() {
 
         <div>
           <h2 className="text-xl font-semibold text-white mb-2">3. Website Features</h2>
-          <p className="text-gray-400 text-sm mb-6">Select the features you need (we’ll confirm scope during discovery).</p>
+          <p className="text-gray-400 text-sm mb-6">
+            Select the features you need (we’ll confirm scope during discovery).
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
@@ -298,7 +325,9 @@ export default function ProjectBriefForm() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-primary"
-                  checked={form.features[item.key as keyof ProjectBriefSubmission["features"]] as boolean}
+                  checked={
+                    form.features[item.key as keyof ProjectBriefSubmission["features"]] as boolean
+                  }
                   onChange={(e) =>
                     setForm((p) => ({
                       ...p,
@@ -319,7 +348,9 @@ export default function ProjectBriefForm() {
               id="featureOther"
               className={inputBase}
               value={form.features.other}
-              onChange={(e) => setForm((p) => ({ ...p, features: { ...p.features, other: e.target.value } }))}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, features: { ...p.features, other: e.target.value } }))
+              }
               placeholder="Examples: API integrations, CRM, inventory, role permissions..."
             />
           </div>
@@ -349,7 +380,9 @@ export default function ProjectBriefForm() {
                 id="colorScheme"
                 className={inputBase}
                 value={form.design.colorScheme}
-                onChange={(e) => setForm((p) => ({ ...p, design: { ...p.design, colorScheme: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, design: { ...p.design, colorScheme: e.target.value } }))
+                }
                 placeholder="Example: Dark theme + blue accent"
               />
             </div>
@@ -361,7 +394,12 @@ export default function ProjectBriefForm() {
                 id="hasLogo"
                 className={inputBase}
                 value={form.design.hasLogo}
-                onChange={(e) => setForm((p) => ({ ...p, design: { ...p.design, hasLogo: e.target.value as YesNo } }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    design: { ...p.design, hasLogo: e.target.value as YesNo },
+                  }))
+                }
               >
                 {yesNoOptions().map((o) => (
                   <option key={o.value} value={o.value} className="bg-background">
@@ -394,7 +432,12 @@ export default function ProjectBriefForm() {
                 id="preferredStyle"
                 className={inputBase}
                 value={form.design.preferredStyle}
-                onChange={(e) => setForm((p) => ({ ...p, design: { ...p.design, preferredStyle: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    design: { ...p.design, preferredStyle: e.target.value },
+                  }))
+                }
                 placeholder="Modern, Minimal, Corporate, Creative..."
               />
             </div>
@@ -435,7 +478,12 @@ export default function ProjectBriefForm() {
                 id="provideText"
                 className={inputBase}
                 value={form.content.provideText}
-                onChange={(e) => setForm((p) => ({ ...p, content: { ...p.content, provideText: e.target.value as YesNo } }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    content: { ...p.content, provideText: e.target.value as YesNo },
+                  }))
+                }
               >
                 {yesNoOptions().map((o) => (
                   <option key={o.value} value={o.value} className="bg-background">
@@ -454,7 +502,10 @@ export default function ProjectBriefForm() {
                 className={inputBase}
                 value={form.content.provideMedia}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, content: { ...p.content, provideMedia: e.target.value as YesNo } }))
+                  setForm((p) => ({
+                    ...p,
+                    content: { ...p.content, provideMedia: e.target.value as YesNo },
+                  }))
                 }
               >
                 {yesNoOptions().map((o) => (
@@ -474,7 +525,10 @@ export default function ProjectBriefForm() {
                 className={inputBase}
                 value={form.content.needContentHelp}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, content: { ...p.content, needContentHelp: e.target.value as YesNo } }))
+                  setForm((p) => ({
+                    ...p,
+                    content: { ...p.content, needContentHelp: e.target.value as YesNo },
+                  }))
                 }
               >
                 {yesNoOptions().map((o) => (
@@ -500,7 +554,10 @@ export default function ProjectBriefForm() {
                 className={inputBase}
                 value={form.domainHosting.hasDomain}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, domainHosting: { ...p.domainHosting, hasDomain: e.target.value as YesNo } }))
+                  setForm((p) => ({
+                    ...p,
+                    domainHosting: { ...p.domainHosting, hasDomain: e.target.value as YesNo },
+                  }))
                 }
               >
                 {yesNoOptions().map((o) => (
@@ -520,7 +577,10 @@ export default function ProjectBriefForm() {
                 className={inputBase}
                 value={form.domainHosting.domainDetails}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, domainHosting: { ...p.domainHosting, domainDetails: e.target.value } }))
+                  setForm((p) => ({
+                    ...p,
+                    domainHosting: { ...p.domainHosting, domainDetails: e.target.value },
+                  }))
                 }
                 placeholder="example.com"
               />
@@ -609,7 +669,9 @@ export default function ProjectBriefForm() {
                 required
                 className={inputBase}
                 value={form.contact.clientName}
-                onChange={(e) => setForm((p) => ({ ...p, contact: { ...p.contact, clientName: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact: { ...p.contact, clientName: e.target.value } }))
+                }
               />
             </div>
             <div>
@@ -622,7 +684,9 @@ export default function ProjectBriefForm() {
                 type="email"
                 className={inputBase}
                 value={form.contact.email}
-                onChange={(e) => setForm((p) => ({ ...p, contact: { ...p.contact, email: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact: { ...p.contact, email: e.target.value } }))
+                }
               />
             </div>
           </div>
@@ -636,7 +700,9 @@ export default function ProjectBriefForm() {
                 id="phone"
                 className={inputBase}
                 value={form.contact.phone}
-                onChange={(e) => setForm((p) => ({ ...p, contact: { ...p.contact, phone: e.target.value } }))}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact: { ...p.contact, phone: e.target.value } }))
+                }
                 placeholder="+234..."
               />
             </div>
@@ -653,7 +719,8 @@ export default function ProjectBriefForm() {
                     ...p,
                     contact: {
                       ...p.contact,
-                      preferredContactMethod: e.target.value as ProjectBriefSubmission["contact"]["preferredContactMethod"],
+                      preferredContactMethod: e.target
+                        .value as ProjectBriefSubmission["contact"]["preferredContactMethod"],
                     },
                   }))
                 }
@@ -678,7 +745,12 @@ export default function ProjectBriefForm() {
               tabIndex={-1}
               autoComplete="off"
               value={form.contact.companyWebsite}
-              onChange={(e) => setForm((p) => ({ ...p, contact: { ...p.contact, companyWebsite: e.target.value } }))}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  contact: { ...p.contact, companyWebsite: e.target.value },
+                }))
+              }
             />
           </div>
 
@@ -691,7 +763,8 @@ export default function ProjectBriefForm() {
               required
             />
             <span className="text-sm text-gray-300">
-              I confirm the information provided is accurate and I consent to being contacted by GGI Tech regarding this request.
+              I confirm the information provided is accurate and I consent to being contacted by GGI
+              Tech regarding this request.
             </span>
           </label>
         </div>
@@ -717,4 +790,3 @@ export default function ProjectBriefForm() {
     </div>
   );
 }
-

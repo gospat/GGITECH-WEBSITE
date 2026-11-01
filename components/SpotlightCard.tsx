@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, MouseEvent } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 export default function SpotlightCard({
   children,
@@ -9,6 +10,7 @@ export default function SpotlightCard({
   children: React.ReactNode;
   className?: string;
 }) {
+  const reduceMotion = useReducedMotion();
   const divRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(0);
@@ -39,7 +41,7 @@ export default function SpotlightCard({
   };
 
   return (
-    <div
+    <motion.div
       ref={divRef}
       onMouseMove={handleMouseMove}
       onFocus={handleFocus}
@@ -47,6 +49,8 @@ export default function SpotlightCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 ${className}`}
+      whileHover={reduceMotion ? undefined : { y: -3 }}
+      transition={{ duration: 0.2 }}
     >
       <div
         className="pointer-events-none absolute -inset-px opacity-0 transition duration-300"
@@ -56,6 +60,6 @@ export default function SpotlightCard({
         }}
       />
       <div className="relative h-full">{children}</div>
-    </div>
+    </motion.div>
   );
 }

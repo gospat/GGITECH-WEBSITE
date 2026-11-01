@@ -1,78 +1,109 @@
 "use client";
 
 import Link from "next/link";
-import { Github, Linkedin, Facebook } from "lucide-react";
-
-// X (formerly Twitter) Icon
-const XIcon = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className={className}
-    fill="currentColor"
-  >
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-);
+import { services } from "@/lib/content/services";
+import { footerCompanyNav, footerLegalNav, site, socialLinks } from "@/lib/site";
 
 export default function Footer() {
   return (
-    <footer className="bg-background border-t border-white/10 pt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-          <div className="col-span-1 md:col-span-2">
-            <Link href="/" className="text-2xl font-bold tracking-tighter text-white mb-4 block">
+    <footer className="border-t border-white/10 bg-background pb-8 pt-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
+          <div className="sm:col-span-2">
+            <Link
+              href="/"
+              aria-label={`${site.name} — home`}
+              className="mb-4 block text-2xl font-bold tracking-tighter text-white"
+            >
               GGI <span className="text-primary">TECH</span>
             </Link>
-            <p className="text-gray-400 mb-6 max-w-sm">
-              A Division of GOSPAT GLOBAL INNOVATIONS LTD. Engineering secure platforms, institutional systems, and blockchain infrastructure for the future.
+            <p className="mb-6 max-w-sm text-gray-400">
+              The technology division of {site.legalName}. We engineer secure platforms,
+              institutional systems, and infrastructure for organisations that need to rely on them.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Github className="w-6 h-6" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <XIcon className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Linkedin className="w-6 h-6" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                <Facebook className="w-6 h-6" />
-              </a>
-            </div>
+            <a
+              href={`mailto:${site.email}`}
+              className="inline-flex items-center font-medium text-primary transition-colors hover:text-white"
+            >
+              {site.email}
+            </a>
+            <p className="mt-3 text-sm text-gray-500">{site.location}</p>
+
+            {socialLinks.length > 0 ? (
+              <ul className="mt-6 flex flex-wrap gap-4">
+                {socialLinks.map((profile) => (
+                  <li key={profile.href}>
+                    <a
+                      href={profile.href}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                      className="text-gray-400 transition-colors hover:text-white"
+                    >
+                      {profile.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
-          
-          <div>
-            <h3 className="text-white font-semibold mb-6">Services</h3>
-            <ul className="space-y-4">
-              <li><Link href="/services" className="text-gray-400 hover:text-primary transition-colors">Software Development</Link></li>
-              <li><Link href="/services" className="text-gray-400 hover:text-primary transition-colors">System Architecture</Link></li>
-              <li><Link href="/services" className="text-gray-400 hover:text-primary transition-colors">Web3 Development</Link></li>
-              <li><Link href="/services" className="text-gray-400 hover:text-primary transition-colors">Cloud Infrastructure</Link></li>
+
+          <nav aria-labelledby="footer-services-heading">
+            <h2
+              id="footer-services-heading"
+              className="mb-5 text-sm font-semibold uppercase tracking-wider text-white"
+            >
+              Services
+            </h2>
+            <ul className="space-y-3">
+              {services.map((service) => (
+                <li key={service.slug}>
+                  <Link
+                    href={`/services#${service.slug}`}
+                    className="text-sm text-gray-400 transition-colors hover:text-primary"
+                  >
+                    {service.title}
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </div>
-          
-          <div>
-            <h3 className="text-white font-semibold mb-6">Company</h3>
-            <ul className="space-y-4">
-              <li><Link href="/about" className="text-gray-400 hover:text-primary transition-colors">About Us</Link></li>
-              <li><Link href="/careers" className="text-gray-400 hover:text-primary transition-colors">Careers</Link></li>
-              <li><Link href="/blog" className="text-gray-400 hover:text-primary transition-colors">Blog</Link></li>
-              <li><Link href="/project-brief" className="text-gray-400 hover:text-primary transition-colors">Project Brief</Link></li>
-              <li><Link href="/contact" className="text-gray-400 hover:text-primary transition-colors">Contact</Link></li>
+          </nav>
+
+          <nav aria-labelledby="footer-company-heading">
+            <h2
+              id="footer-company-heading"
+              className="mb-5 text-sm font-semibold uppercase tracking-wider text-white"
+            >
+              Company
+            </h2>
+            <ul className="space-y-3">
+              {footerCompanyNav.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="text-sm text-gray-400 transition-colors hover:text-primary"
+                  >
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </div>
+          </nav>
         </div>
-        
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500">
-          <p>© 2026 GOSPAT GLOBAL INNOVATIONS LTD. All rights reserved.</p>
-          <div className="flex space-x-6 mt-4 md:mt-0 items-center">
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-gray-500 md:flex-row">
+          <p suppressHydrationWarning>
+            © {new Date().getFullYear()} {site.legalName}. All rights reserved.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            {footerLegalNav.map((item) => (
+              <Link key={item.href} href={item.href} className="transition-colors hover:text-white">
+                {item.name}
+              </Link>
+            ))}
             <button
+              type="button"
               onClick={() => window.dispatchEvent(new Event("openCookieSettings"))}
-              className="hover:text-white transition-colors"
+              className="transition-colors hover:text-white"
             >
               Cookie Settings
             </button>

@@ -21,9 +21,7 @@ function sanitizeLine(value: string): string {
 }
 
 function bulletList(items: { label: string; value: string }[]): string[] {
-  return items
-    .map((i) => `${i.label}: ${sanitizeLine(i.value || "-")}`)
-    .filter(Boolean);
+  return items.map((i) => `${i.label}: ${sanitizeLine(i.value || "-")}`).filter(Boolean);
 }
 
 export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8Array> {
@@ -56,7 +54,10 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
     y = pageSize[1] - marginTop;
   };
 
-  const drawWrappedText = (text: string, opts: { bold?: boolean; size?: number; color?: ReturnType<typeof rgb> }) => {
+  const drawWrappedText = (
+    text: string,
+    opts: { bold?: boolean; size?: number; color?: ReturnType<typeof rgb> }
+  ) => {
     const size = opts.size ?? bodySize;
     const usedFont = opts.bold ? fontBold : font;
     const color = opts.color ?? colorText;
@@ -99,7 +100,13 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
   const drawHeading = (heading: string) => {
     ensureSpace(headingSize + 14);
     y -= 6;
-    page.drawText(heading, { x: marginX, y, size: headingSize, font: fontBold, color: colorAccent });
+    page.drawText(heading, {
+      x: marginX,
+      y,
+      size: headingSize,
+      font: fontBold,
+      color: colorAccent,
+    });
     y -= headingSize + 8;
   };
 
@@ -177,10 +184,16 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
       { label: "Color Scheme", value: submission.design.colorScheme || "-" },
       { label: "Logo Available", value: yesNoLabel(submission.design.hasLogo) },
       { label: "Preferred Style", value: submission.design.preferredStyle || "-" },
-      { label: "Accessibility Priority", value: yesNoLabel(submission.design.accessibilityPriority) },
+      {
+        label: "Accessibility Priority",
+        value: yesNoLabel(submission.design.accessibilityPriority),
+      },
       {
         label: "Reference Websites",
-        value: submission.design.referenceWebsites.length > 0 ? submission.design.referenceWebsites.join(", ") : "-",
+        value:
+          submission.design.referenceWebsites.length > 0
+            ? submission.design.referenceWebsites.join(", ")
+            : "-",
       },
     ]).join("\n"),
     { size: bodySize }
@@ -191,7 +204,10 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
     bulletList([
       { label: "Will Provide Text Content", value: yesNoLabel(submission.content.provideText) },
       { label: "Will Provide Images/Videos", value: yesNoLabel(submission.content.provideMedia) },
-      { label: "Needs Help Creating Content", value: yesNoLabel(submission.content.needContentHelp) },
+      {
+        label: "Needs Help Creating Content",
+        value: yesNoLabel(submission.content.needContentHelp),
+      },
     ]).join("\n"),
     { size: bodySize }
   );
@@ -228,7 +244,13 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
 
   ensureSpace(18);
   y -= 8;
-  page.drawText("Internal Metadata", { x: marginX, y, size: 10, font: fontBold, color: colorMuted });
+  page.drawText("Internal Metadata", {
+    x: marginX,
+    y,
+    size: 10,
+    font: fontBold,
+    color: colorMuted,
+  });
   y -= 14;
   drawWrappedText(
     bulletList([
@@ -240,4 +262,3 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
 
   return pdfDoc.save();
 }
-

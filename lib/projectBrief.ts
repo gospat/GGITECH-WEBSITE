@@ -1,3 +1,5 @@
+import { asString, clampText, isEmail, isRecord } from "@/lib/validation";
+
 export type YesNo = "yes" | "no";
 
 export type ProjectBriefFeatures = {
@@ -70,17 +72,7 @@ export type ProjectBriefSubmission = {
 };
 
 export type ValidationResult =
-  | { ok: true; data: ProjectBriefSubmission }
-  | { ok: false; errors: string[] };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function asString(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value.trim();
-}
+  { ok: true; data: ProjectBriefSubmission } | { ok: false; errors: string[] };
 
 function asYesNo(value: unknown, fallback: YesNo = "no"): YesNo {
   if (value === "yes" || value === "no") return value;
@@ -98,17 +90,6 @@ function asStringArray(value: unknown): string[] {
     .map((v) => v.trim())
     .filter(Boolean)
     .slice(0, 10);
-}
-
-function isEmail(email: string): boolean {
-  if (!email) return false;
-  if (email.length > 254) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function clampText(input: string, max: number): string {
-  if (input.length <= max) return input;
-  return input.slice(0, max).trim();
 }
 
 export function validateProjectBrief(payload: unknown): ValidationResult {
@@ -221,4 +202,3 @@ export function validateProjectBrief(payload: unknown): ValidationResult {
     },
   };
 }
-

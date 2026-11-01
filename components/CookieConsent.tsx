@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 
@@ -16,6 +16,7 @@ interface CookiePreferences {
 export default function CookieConsent() {
   const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [preferences, setPreferences] = useState<CookiePreferences>({
     essential: true,
     preferences: false,
@@ -41,6 +42,46 @@ export default function CookieConsent() {
     window.addEventListener("openCookieSettings", handleOpen);
     return () => window.removeEventListener("openCookieSettings", handleOpen);
   }, []);
+
+  // Escape closes the dialog, Tab is trapped inside it, and focus moves in on open.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const focusTimer = window.setTimeout(() => {
+      dialogRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+    }, 50);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.clearTimeout(focusTimer);
+    };
+  }, [isOpen]);
 
   const handleAcceptAll = () => {
     const allEnabled = {
@@ -99,24 +140,36 @@ export default function CookieConsent() {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
           >
-            <div className="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cookie-consent-title"
+              className="bg-[#0f172a] border border-white/10 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+            >
               {!showSettings ? (
                 // Initial View
                 <div className="p-8">
-                  <h2 className="text-3xl font-bold text-white mb-4">Choose your cookies</h2>
+                  <h2 id="cookie-consent-title" className="text-3xl font-bold text-white mb-4">
+                    Choose your cookies
+                  </h2>
                   <p className="text-gray-400 mb-8 leading-relaxed">
-                    To provide the best experiences, we use technologies like cookies to store and/or access device information. Consenting to these technologies will allow us to process data such as browsing behavior on this site.
+                    To provide the best experiences, we use technologies like cookies to store
+                    and/or access device information. Consenting to these technologies will allow us
+                    to process data such as browsing behavior on this site.
                   </p>
-                  
+
                   <div className="flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <button
+                        type="button"
                         onClick={handleAcceptAll}
                         className="py-3 px-4 bg-primary hover:bg-blue-600 text-white font-medium rounded-full transition-colors"
                       >
                         Accept all
                       </button>
                       <button
+                        type="button"
                         onClick={handleRejectAll}
                         className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-full transition-colors"
                       >
@@ -124,6 +177,7 @@ export default function CookieConsent() {
                       </button>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setShowSettings(true)}
                       className="py-3 px-4 text-gray-400 hover:text-white font-medium transition-colors text-sm"
                     >
@@ -136,19 +190,23 @@ export default function CookieConsent() {
                 <div className="flex flex-col h-full">
                   <div className="p-6 border-b border-white/10 flex items-center justify-between">
                     <button
+                      type="button"
                       onClick={() => setShowSettings(false)}
                       className="flex items-center text-gray-400 hover:text-white transition-colors"
                     >
-                      <ChevronLeft className="w-5 h-5 mr-1" />
+                      <ChevronLeft className="w-5 h-5 mr-1" aria-hidden="true" />
                       Back
                     </button>
-                    <h2 className="text-xl font-bold text-white">Cookie Settings</h2>
-                    <div className="w-16" /> {/* Spacer for centering */}
+                    <h2 id="cookie-consent-title" className="text-xl font-bold text-white">
+                      Cookie Settings
+                    </h2>
+                    <div className="w-16" aria-hidden="true" />
                   </div>
 
                   <div className="p-6 overflow-y-auto flex-1 space-y-6">
                     <p className="text-gray-400 text-sm">
-                      Cookies help us to enhance your experience, tailor ads to your interests, and improve our website.
+                      Cookies help us to enhance your experience, tailor ads to your interests, and
+                      improve our website.
                     </p>
 
                     {/* Toggles */}
@@ -184,12 +242,14 @@ export default function CookieConsent() {
 
                   <div className="p-6 border-t border-white/10 bg-[#0B0F1A]/50 gap-3 grid grid-cols-2">
                     <button
+                      type="button"
                       onClick={handleConfirmChoices}
                       className="py-3 px-4 bg-primary hover:bg-blue-600 text-white font-medium rounded-full transition-colors"
                     >
                       Confirm choices
                     </button>
                     <button
+                      type="button"
                       onClick={handleAcceptAll}
                       className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium rounded-full transition-colors"
                     >
@@ -232,13 +292,18 @@ function CookieToggle({
           <span className="text-xs font-medium text-primary mb-2">{activeLabel}</span>
         )}
         <button
+          type="button"
           onClick={onChange}
           disabled={disabled}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
             checked ? "bg-primary" : "bg-gray-700"
           } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         >
           <span
+            aria-hidden="true"
             className={`${
               checked ? "translate-x-6" : "translate-x-1"
             } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}

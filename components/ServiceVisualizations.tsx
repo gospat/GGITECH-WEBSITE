@@ -1,14 +1,54 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Server, Database, Globe, Smartphone, ShieldCheck, Cpu, Code, Layers, Box, Link as LinkIcon, Cloud } from "lucide-react";
+import { useRef } from "react";
+import type { ReactNode } from "react";
+import { MotionConfig, motion, useInView } from "framer-motion";
+import {
+  Server,
+  Database,
+  Globe,
+  Smartphone,
+  ShieldCheck,
+  Cpu,
+  Code,
+  Layers,
+  Box,
+  Link as LinkIcon,
+  Cloud,
+} from "lucide-react";
+
+/**
+ * Decorative animation frame. The infinite loops inside these visuals are
+ * paused while the visual is off-screen, and disabled entirely for visitors who
+ * prefer reduced motion.
+ */
+function VizFrame({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { margin: "200px" });
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div ref={ref} className="h-full w-full">
+        {inView ? children : null}
+      </div>
+    </MotionConfig>
+  );
+}
 
 // --- 1. Software Development Visualization (Code Building) ---
 export function SoftwareDevViz() {
   return (
+    <VizFrame>
+      <SoftwareDevVizContent />
+    </VizFrame>
+  );
+}
+
+function SoftwareDevVizContent() {
+  return (
     <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]" />
-      
+
       {/* Code Editor Window */}
       <div className="w-64 bg-[#1e1e1e] rounded-lg border border-white/10 shadow-2xl overflow-hidden relative z-10">
         <div className="h-6 bg-[#2d2d2d] flex items-center px-3 gap-1.5 border-b border-white/5">
@@ -17,33 +57,33 @@ export function SoftwareDevViz() {
           <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
         </div>
         <div className="p-4 space-y-2 font-mono text-[10px]">
-          <motion.div 
-            initial={{ width: 0 }} 
-            animate={{ width: "100%" }} 
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
             transition={{ duration: 1, repeat: Infinity, repeatDelay: 3 }}
             className="h-2 bg-primary/40 rounded w-3/4 overflow-hidden"
           />
-          <motion.div 
-            initial={{ width: 0 }} 
-            animate={{ width: "100%" }} 
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
             transition={{ duration: 1, delay: 0.2, repeat: Infinity, repeatDelay: 3 }}
             className="h-2 bg-purple-400/40 rounded w-1/2 overflow-hidden"
           />
-          <motion.div 
-            initial={{ width: 0 }} 
-            animate={{ width: "100%" }} 
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
             transition={{ duration: 1, delay: 0.4, repeat: Infinity, repeatDelay: 3 }}
             className="h-2 bg-emerald-400/40 rounded w-2/3 overflow-hidden"
           />
           <div className="h-2" />
-          <motion.div 
-            initial={{ width: 0 }} 
-            animate={{ width: "100%" }} 
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
             transition={{ duration: 1, delay: 0.6, repeat: Infinity, repeatDelay: 3 }}
             className="h-2 bg-yellow-400/40 rounded w-5/6 overflow-hidden"
           />
         </div>
-        
+
         {/* Floating Elements */}
         <motion.div
           animate={{ y: [-5, 5, -5] }}
@@ -67,13 +107,28 @@ export function SoftwareDevViz() {
 // --- 2. System Architecture Visualization (Hub & Spoke) ---
 export function SystemArchViz() {
   return (
+    <VizFrame>
+      <SystemArchVizContent />
+    </VizFrame>
+  );
+}
+
+function SystemArchVizContent() {
+  return (
     <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]" />
-      
+
       {/* Central Hub */}
       <div className="relative z-10 flex flex-col items-center">
         <motion.div
-          animate={{ scale: [1, 1.1, 1], boxShadow: ["0 0 0 0px rgba(59, 130, 246, 0.2)", "0 0 0 20px rgba(59, 130, 246, 0)", "0 0 0 0px rgba(59, 130, 246, 0)"] }}
+          animate={{
+            scale: [1, 1.1, 1],
+            boxShadow: [
+              "0 0 0 0px rgba(59, 130, 246, 0.2)",
+              "0 0 0 20px rgba(59, 130, 246, 0)",
+              "0 0 0 0px rgba(59, 130, 246, 0)",
+            ],
+          }}
           transition={{ duration: 3, repeat: Infinity }}
           className="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center backdrop-blur-md"
         >
@@ -96,7 +151,7 @@ export function SystemArchViz() {
   );
 }
 
-function ArchNode({ icon, angle, delay }: { icon: React.ReactNode, angle: number, delay: number }) {
+function ArchNode({ icon, angle, delay }: { icon: React.ReactNode; angle: number; delay: number }) {
   const radius = 120;
   const x = Math.cos((angle * Math.PI) / 180) * radius;
   const y = Math.sin((angle * Math.PI) / 180) * radius;
@@ -116,7 +171,10 @@ function ArchNode({ icon, angle, delay }: { icon: React.ReactNode, angle: number
 
 function Connection({ angle, delayIndex }: { angle: number; delayIndex: number }) {
   return (
-    <div className="absolute top-1/2 left-1/2 w-[120px] h-[2px] origin-left -translate-y-1/2" style={{ transform: `rotate(${angle}deg) translateY(-50%)` }}>
+    <div
+      className="absolute top-1/2 left-1/2 w-[120px] h-[2px] origin-left -translate-y-1/2"
+      style={{ transform: `rotate(${angle}deg) translateY(-50%)` }}
+    >
       <div className="w-full h-full bg-gradient-to-r from-primary/50 to-transparent opacity-30" />
       <motion.div
         animate={{ left: ["0%", "100%"], opacity: [0, 1, 0] }}
@@ -130,9 +188,17 @@ function Connection({ angle, delayIndex }: { angle: number; delayIndex: number }
 // --- 3. Web3 Development Visualization (Blockchain) ---
 export function Web3Viz() {
   return (
+    <VizFrame>
+      <Web3VizContent />
+    </VizFrame>
+  );
+}
+
+function Web3VizContent() {
+  return (
     <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]" />
-      
+
       <div className="flex items-center space-x-4">
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex items-center">
@@ -148,7 +214,7 @@ export function Web3Viz() {
                 <CheckIcon />
               </div>
             </motion.div>
-            
+
             {i < 2 && (
               <motion.div
                 initial={{ width: 0, opacity: 0 }}
@@ -179,19 +245,31 @@ function CheckIcon() {
 // --- 4. Cloud Infrastructure Visualization (Server Cluster) ---
 export function CloudViz() {
   return (
+    <VizFrame>
+      <CloudVizContent />
+    </VizFrame>
+  );
+}
+
+function CloudVizContent() {
+  return (
     <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]" />
-      
+
       {/* Cloud Icon Background */}
       <Cloud className="absolute text-white/5 w-64 h-64" />
-      
+
       <div className="grid grid-cols-2 gap-6 relative z-10">
         {[0, 1, 2, 3].map((i) => (
           <motion.div
             key={i}
-            animate={{ 
+            animate={{
               y: [0, -5, 0],
-              borderColor: ["rgba(255,255,255,0.1)", "rgba(59, 130, 246, 0.5)", "rgba(255,255,255,0.1)"]
+              borderColor: [
+                "rgba(255,255,255,0.1)",
+                "rgba(59, 130, 246, 0.5)",
+                "rgba(255,255,255,0.1)",
+              ],
             }}
             transition={{ duration: 3, delay: i * 0.5, repeat: Infinity }}
             className="w-32 h-20 bg-white/5 border border-white/10 rounded-lg flex flex-col items-center justify-center backdrop-blur-md"
@@ -201,7 +279,7 @@ export function CloudViz() {
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             </div>
             <div className="w-20 h-1 bg-white/10 rounded-full overflow-hidden">
-              <motion.div 
+              <motion.div
                 animate={{ width: ["20%", "80%", "40%"] }}
                 transition={{ duration: 4, repeat: Infinity }}
                 className="h-full bg-sky-400"
@@ -211,14 +289,14 @@ export function CloudViz() {
           </motion.div>
         ))}
       </div>
-      
+
       {/* Load Balancer Lines */}
       <div className="absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-         <motion.div 
-           animate={{ rotate: 360 }}
-           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-           className="w-[280px] h-[280px] border border-dashed border-white/10 rounded-full"
-         />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="w-[280px] h-[280px] border border-dashed border-white/10 rounded-full"
+        />
       </div>
     </div>
   );

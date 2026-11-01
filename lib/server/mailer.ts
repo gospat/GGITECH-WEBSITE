@@ -21,4 +21,3 @@ export function getTransporter(): Transporter {
 
   return transporter;
 }
-

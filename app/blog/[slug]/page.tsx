@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import Illustration from "@/components/Illustration";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -30,7 +31,10 @@ export default async function BlogPostPage({ params }: Props) {
       <Navbar />
 
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <Link href="/blog" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
+        <Link
+          href="/blog"
+          className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Blog
         </Link>
@@ -48,6 +52,16 @@ export default async function BlogPostPage({ params }: Props) {
             <span>{post.date}</span>
           </div>
         </header>
+
+        <div className="mb-10 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+          <Illustration
+            src={post.coverImageSrc}
+            alt={post.coverAlt}
+            className="w-full h-auto object-cover"
+            priority
+            sizes="(max-width: 1024px) 100vw, 768px"
+          />
+        </div>
 
         <article className="prose prose-invert max-w-none">
           {post.blocks.map((b, i) => {

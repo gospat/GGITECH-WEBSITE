@@ -23,4 +23,3 @@ export function rateLimit(params: {
   buckets.set(params.key, bucket);
   return { ok: true };
 }
-

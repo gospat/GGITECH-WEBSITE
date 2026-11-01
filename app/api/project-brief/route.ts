@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { validateProjectBrief } from "@/lib/projectBrief";
+import { site } from "@/lib/site";
 import { getMailEnv } from "@/lib/server/env";
 import { getTransporter } from "@/lib/server/mailer";
 import { buildProjectBriefPdf } from "@/lib/server/projectBriefPdf";
@@ -48,7 +49,10 @@ export async function POST(req: NextRequest) {
   try {
     env = getMailEnv();
   } catch {
-    return NextResponse.json({ ok: false, error: "Server email configuration is missing." }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Server email configuration is missing." },
+      { status: 500 }
+    );
   }
 
   const submission = validation.data;
@@ -103,10 +107,9 @@ export async function POST(req: NextRequest) {
       "Our team will review your requirements and reach out using your preferred contact method.",
       "",
       "GGI Tech — A Division of GOSPAT GLOBAL INNOVATIONS LTD",
-      "contact@ggitech.dev",
+      site.email,
     ].join("\n"),
   });
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }
-
