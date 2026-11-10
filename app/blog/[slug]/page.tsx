@@ -27,7 +27,7 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   return (
-    <main className="min-h-screen bg-background text-white">
+    <main id="main" className="min-h-screen bg-background text-white">
       <Navbar />
 
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">

@@ -39,6 +39,19 @@ export default function Navbar() {
     };
   }, [isMenuOpen]);
 
+  // The panel and its close button are both hidden from the lg breakpoint up, so
+  // a menu left open while the viewport grows past 1024px would hold the page
+  // scroll lock with no visible way out. Close it once the desktop nav takes over.
+  useEffect(() => {
+    const desktopNav = window.matchMedia("(min-width: 1024px)");
+    const handleBreakpointChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setIsMenuOpen(false);
+    };
+
+    desktopNav.addEventListener("change", handleBreakpointChange);
+    return () => desktopNav.removeEventListener("change", handleBreakpointChange);
+  }, []);
+
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
