@@ -107,7 +107,7 @@ const organizationJsonLd = {
   name: site.name,
   legalName: site.legalName,
   url: siteUrl,
-  logo: absoluteUrl("/favicon.ico"),
+  logo: absoluteUrl("/brand/icon-512.png"),
   email: site.email,
   description: site.description,
   address: {

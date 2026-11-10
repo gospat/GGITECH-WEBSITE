@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "01-hexa-node",
+    "name": "Hexa Node",
+    "palette": {
+      "primary": "#3B82F6",
+      "accent": "#22C55E",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "A hexagonal lattice is the most efficient way to pack a network, so the mark reads as infrastructure: six vertices, three of them live nodes joined to a central core. The wordmark is set in the regular weight of the system alphabet with generous even tracking, so the hexagon never competes with the name.",
+    "tone": "Engineered, dependable, unshowy.",
+    "usage": "Best all-rounder for the main site header, deck covers and signage."
+  },
+  {
+    "slug": "02-monogram-block",
+    "name": "Monogram Block",
+    "palette": {
+      "primary": "#2563EB",
+      "accent": "#FFFFFF",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Maximum recall at minimum size. A single rounded-square container holds a knocked-out G, giving one unambiguous silhouette that survives being rendered at 16 pixels. The wordmark is pushed to the heaviest weight in the system so the lockup holds together when the mark is small.",
+    "tone": "Confident, compact, app-ready.",
+    "usage": "Strongest option for the favicon, app icon, social avatar and stamp-sized print."
+  },
+  {
+    "slug": "03-ascent-bars",
+    "name": "Ascent Bars",
+    "palette": {
+      "primary": "#22C55E",
+      "accent": "#14B8A6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Four bars climbing left to right describe measured, compounding progress, with the leading bar carrying the accent colour as the goal state. The wordmark runs light and widely tracked so it behaves like a caption to the chart rather than a headline.",
+    "tone": "Growth-oriented, calm, data-literate.",
+    "usage": "Fits analytics, delivery and results material; strong on wide banners."
+  },
+  {
+    "slug": "04-circuit-trace",
+    "name": "Circuit Trace",
+    "palette": {
+      "primary": "#06B6D4",
+      "accent": "#3B82F6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "A spine with routed branches and terminated pads is literally a board layout. Squared terminals and mitered corners keep the whole identity machined rather than drawn, and the wordmark is condensed to match the density of the diagram.",
+    "tone": "Precise, hands-on, systems-level.",
+    "usage": "Good for engineering documentation, technical proposals and hardware-adjacent work."
+  },
+  {
+    "slug": "05-orbit-core",
+    "name": "Orbit Core",
+    "palette": {
+      "primary": "#8B5CF6",
+      "accent": "#3B82F6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Three intersecting orbits around a solid nucleus express platform, scale and reach, while the nucleus keeps a clear centre of gravity. This is the most overtly technological of the ten, so the wordmark stays restrained and evenly tracked to keep it credible.",
+    "tone": "Ambitious, connected, enterprise-grade.",
+    "usage": "Suits platform, cloud and infrastructure positioning; reads well reversed on photography."
+  },
+  {
+    "slug": "06-bracket-frame",
+    "name": "Bracket Frame",
+    "palette": {
+      "primary": "#F59E0B",
+      "accent": "#3B82F6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Two brackets holding a core is a container for whatever the client needs built, and it borrows the syntax of code without spelling any out. Very tight tracking and the heaviest weight in the system give the wordmark an almost solid, carved quality.",
+    "tone": "Protective, precise, developer-native.",
+    "usage": "Works as an engineering sub-brand; the amber reads clearly on light and dark."
+  },
+  {
+    "slug": "07-iso-cube",
+    "name": "Iso Cube",
+    "palette": {
+      "primary": "#0EA5E9",
+      "accent": "#22C55E",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "An isometric cube built from three rhombi is the standard shorthand for solid, stackable components, which is exactly what a delivery partner sells. The wordmark is extended to 112 percent so the name has the same unhurried width as the cube.",
+    "tone": "Structural, modular, quietly premium.",
+    "usage": "Best for architecture, product and platform work; strong on light backgrounds."
+  },
+  {
+    "slug": "08-delta-pulse",
+    "name": "Delta Pulse",
+    "palette": {
+      "primary": "#EC4899",
+      "accent": "#8B5CF6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Delta means change; nesting a solid triangle inside an outline one gives direction and momentum. The wordmark is the only one in the system carrying a true oblique, which supplies kinetic energy the marks create elsewhere.",
+    "tone": "Fast, disruptive, product-led.",
+    "usage": "Right for launches, campaigns and product announcements; avoid for formal tenders."
+  },
+  {
+    "slug": "09-signal-arcs",
+    "name": "Signal Arcs",
+    "palette": {
+      "primary": "#10B981",
+      "accent": "#3B82F6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "Three arcs radiating from a single point describe broadcasting, reach and uptime, and the geometry doubles as a coverage diagram. The wordmark is the lightest and most widely tracked in the system so it recedes and lets the arcs carry the brand.",
+    "tone": "Available, responsive, service-minded.",
+    "usage": "Suits managed services, support and connectivity messaging; excellent at large sizes."
+  },
+  {
+    "slug": "10-prism-split",
+    "name": "Prism Split",
+    "palette": {
+      "primary": "#F97316",
+      "accent": "#3B82F6",
+      "ink": "#0B0F1A"
+    },
+    "philosophy": "One square cut on the diagonal into a solid half and a void half: analysis separating signal from noise, or a problem reduced to its parts. The wordmark is very slightly condensed and squared off so the identity reads as edited and deliberate.",
+    "tone": "Analytical, decisive, consultancy-adjacent.",
+    "usage": "Fits advisory, audit and strategy services; holds up in single-colour print."
+  }
+]

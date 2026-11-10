@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Logo from "@/components/Logo";
 import { primaryNav, site } from "@/lib/site";
 
 export default function Navbar() {
@@ -51,15 +52,11 @@ export default function Navbar() {
     >
       <nav aria-label="Primary" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
-          <Link
-            href="/"
-            aria-label={`${site.name} — home`}
-            className="shrink-0 text-2xl font-bold tracking-tighter text-white"
-          >
-            GGI <span className="text-primary">TECH</span>
+          <Link href="/" aria-label={`${site.name} — home`} className="shrink-0 text-white">
+            <Logo className="h-6 w-auto sm:h-7" />
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-8 lg:flex">
             {primaryNav.map((item) => (
               <Link
                 key={item.href}
@@ -86,7 +83,7 @@ export default function Navbar() {
             aria-expanded={isMenuOpen}
             aria-controls="mobile-menu"
             aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="-mr-2 rounded-md p-2 text-gray-300 transition-colors hover:text-white focus-visible:text-white md:hidden"
+            className="-mr-2 rounded-md p-2 text-gray-300 transition-colors hover:text-white focus-visible:text-white lg:hidden"
           >
             {isMenuOpen ? (
               <X size={24} aria-hidden="true" />
@@ -105,7 +102,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: "auto" }}
             exit={reduceMotion ? { opacity: 1, height: "auto" } : { opacity: 0, height: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.25 }}
-            className="overflow-hidden border-b border-white/10 bg-background/95 backdrop-blur-xl md:hidden"
+            className="overflow-hidden border-b border-white/10 bg-background/95 backdrop-blur-xl lg:hidden"
           >
             <ul className="space-y-1 px-4 pb-4 pt-2 sm:px-6">
               {primaryNav.map((item) => (

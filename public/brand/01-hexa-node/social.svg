@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="GGITECH Hexa Node avatar">
+<title>GGITECH Hexa Node avatar</title>
+<rect width="512" height="512" fill="#0B0F1A"/>
+<g transform="translate(146 146) scale(2.2)"><g fill="none" stroke="#3B82F6" stroke-width="6" stroke-linejoin="round"><path d="M 88.11 72 L 50 94 L 11.89 72 L 11.89 28 L 50 6 L 88.11 28 Z"/><path d="M 50 50 L 88.11 28"/><path d="M 50 50 L 50 94"/><path d="M 50 50 L 11.89 28"/></g><circle cx="50" cy="50" r="8" fill="#3B82F6"/><circle cx="88.11" cy="28" r="7" fill="#22C55E"/><circle cx="50" cy="94" r="7" fill="#22C55E"/><circle cx="11.89" cy="28" r="7" fill="#22C55E"/></g>
+</svg>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { services } from "@/lib/content/services";
 import { footerCompanyNav, footerLegalNav, site, socialLinks } from "@/lib/site";
 
@@ -10,12 +11,8 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           <div className="sm:col-span-2">
-            <Link
-              href="/"
-              aria-label={`${site.name} — home`}
-              className="mb-4 block text-2xl font-bold tracking-tighter text-white"
-            >
-              GGI <span className="text-primary">TECH</span>
+            <Link href="/" aria-label={`${site.name} — home`} className="mb-4 block text-white">
+              <Logo className="h-7 w-auto" />
             </Link>
             <p className="mb-6 max-w-sm text-gray-400">
               The technology division of {site.legalName}. We engineer secure platforms,
