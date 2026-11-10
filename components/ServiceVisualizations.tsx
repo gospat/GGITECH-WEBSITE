@@ -15,6 +15,11 @@ import {
   Box,
   Link as LinkIcon,
   Cloud,
+  ChevronLeft,
+  ChevronRight,
+  Lock,
+  Plus,
+  RotateCw,
 } from "lucide-react";
 
 /**
@@ -49,13 +54,29 @@ function SoftwareDevVizContent() {
     <div className="relative w-full h-full flex items-center justify-center p-8 overflow-hidden">
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px]" />
 
-      {/* Code Editor Window */}
-      <div className="w-64 bg-[#1e1e1e] rounded-lg border border-white/10 shadow-2xl overflow-hidden relative z-10">
-        <div className="h-6 bg-[#2d2d2d] flex items-center px-3 gap-1.5 border-b border-white/5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+      {/* Browser frame */}
+      <div className="w-64 bg-[#111725] rounded-lg border border-white/10 shadow-2xl overflow-hidden relative z-10">
+        {/* Tab strip */}
+        <div className="h-6 bg-[#0d1320] flex items-center gap-1.5 px-2 border-b border-white/5">
+          <div className="h-4 w-24 rounded-t-md bg-[#111725] border-x border-t border-white/10 flex items-center gap-1.5 px-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent/70" />
+            <span className="h-1 flex-1 rounded-full bg-white/10" />
+          </div>
+          <Plus className="w-3 h-3 text-white/25" />
         </div>
+
+        {/* Toolbar */}
+        <div className="h-7 bg-[#151d2c] flex items-center gap-1.5 px-2 border-b border-white/5">
+          <ChevronLeft className="w-3 h-3 text-white/25" />
+          <ChevronRight className="w-3 h-3 text-white/25" />
+          <RotateCw className="w-3 h-3 text-white/25" />
+          <div className="flex-1 h-4 rounded-full bg-white/[0.06] border border-white/10 flex items-center gap-1.5 px-2">
+            <Lock className="w-2.5 h-2.5 text-accent/70" />
+            <span className="h-1 flex-1 rounded-full bg-white/10" />
+          </div>
+        </div>
+
+        {/* Rendered page */}
         <div className="p-4 space-y-2 font-mono text-[10px]">
           <motion.div
             initial={{ width: 0 }}
