@@ -122,7 +122,7 @@ says *which* thing failed instead of only "deployment failed".
 | `1` | Preflight/environment failure (not root, a required directory missing) | An installation step was skipped or reverted — see below |
 | `2` | Bad usage or a malformed release id | A caller bug, not a server problem |
 | `3` | Release missing, or a path that escapes `releases/` | The transfer or the promotion failed |
-| `4` | Release content failed validation | The artifact was rejected and deleted |
+| `4` | The release was found but is unusable: unsafe or invalid content, a `RELEASE_SHA` mismatch, or it could not be prepared and owned on disk | The artifact was rejected and deleted, or `prepare_release` refused it and nothing was swapped |
 | `5` | Another activation holds the lock | Wait; `/run` is tmpfs, a reboot clears it |
 | `6` | Activation failed, **but the previous release was restored and is healthy** | Production is serving the previous release |
 | `7` | Activation failed **and the rollback did not restore service** | Needs a human; the workflow's recovery step tries, then verifies |
@@ -609,6 +609,7 @@ Read **Execution status** under *Testing* before treating any row as verified:
 | Repeated activation of the same commit | exit `0`, permissions untouched, no self-referential rollback target |
 | Manual rollback to a known-good release | exit `0`, `current` and `active` both restored |
 | Missing/malformed artifacts | exit `2`/`3`/`4` for bad ids, absent releases, missing files, wrong SHA, empty `BUILD_ID`, absolute and escaping symlinks, FIFOs, setuid bits, extra arguments, symlinked uploads |
+| A release that cannot be prepared | exit `4`; the symlink is not moved, the live release keeps serving, and no rollback is attempted |
 | Concurrent activation | second caller exits `5`; `--status` still answers |
 
 See **Testing** for what this does and does not prove.
@@ -654,6 +655,8 @@ A `200` alone is not treated as success. Activation requires **all** of:
 | exit `3`, "release directory does not exist" | The rsync step failed or the SHA never uploaded | Check the Actions upload step, then `ls /home/deploy/uploads` |
 | exit `4`, `release is incomplete; missing: .next/static` | The assemble step regressed | The workflow checks for this too; fix `Assemble the standalone release` |
 | exit `4`, "release self-identifies as …" | Artifact uploaded under the wrong SHA | Re-run; never rename an upload by hand |
+| exit `4`, "could not be prepared for activation" | `prepare_release` could not create `.next/cache`, or its `chown`/`chmod` failed — see the line above it in the log | **Nothing was swapped**, so the site is still serving the previous release. Fix the host and re-run |
+| exit `4`, "could not hand … to ggitech:ggitech" | The service account does not exist on the host, or the filesystem is full | `getent passwd ggitech` must return a line; re-run step 1 if not |
 | exit `6` | The app was unhealthy, but the **previous release was restored and is healthy** | Production is serving the previous release; check the journal for what failed |
 | exit `7` | Activation failed **and the rollback did not restore service** | Needs a human. `sudo systemctl status ggitech`, then `journalctl -u ggitech -n 100` |
 | exit `8` | Activation failed and there was **nothing verified to fall back to** | A failed first deployment. Check the journal, then re-run once the cause is fixed |
@@ -719,6 +722,13 @@ The activator is deliberately not test-aware. A root script whose base directory
 could be overridden from the environment would be exactly the vulnerability this
 design exists to avoid, so the tests bend the filesystem instead of the script.
 
+The same applies to the `ggitech` service account the activator chowns to: rather
+than creating an account on the machine running the tests, the suite appends the
+identity to private copies of `/etc/passwd`, `/etc/group` and `/etc/nsswitch.conf`
+and bind-mounts those *inside the namespace only*. Nothing outside the namespace
+can see them, and no account, group or system file is created, modified or deleted
+on the host — a run leaves the machine exactly as it found it.
+
 ```bash
 # On a scratch Linux VM or container, as root. Refuses to run on a host that
 # already has a GGITECH installation.
@@ -736,41 +746,49 @@ incomplete artifacts, a wrong `RELEASE_SHA`, an empty `BUILD_ID`, absolute
 symlinks, symlinks that escape the release, FIFOs, setuid files and a symlinked
 upload path; that release code ends up `root:root` and not writable by the
 service account while `.next/cache` is handed to `ggitech:ggitech` at `0750`;
-and each of the ten scenarios in the rollback table above, including the exact
-exit code for every outcome.
+that a release whose preparation fails exits `4` without the symlink ever being
+moved; and each of the eleven scenarios in the rollback table above, including
+the exact exit code for every outcome.
 
 #### Execution status
 
-The suite was executed exactly once, on a throwaway `ubuntu-26.04` GitHub
-Actions runner. It has **never been run against the DigitalOcean host**, and no
-part of this deployment system has been activated anywhere.
+The suite was executed in a disposable `ubuntu-24.04` GitHub Actions runner
+(Ubuntu 24.04.5 LTS, x86_64, kernel `7.0.0-1017-azure`) — the same OS class as
+the production host. It has **never been run against the DigitalOcean host**, and
+no part of this deployment system has been activated anywhere.
 
-The result was **78 assertions passed, 8 failed**, so the suite does **not yet**
-prove the state machine end to end and the assertions listed above are asserted
-rather than verified.
+The result was **97 assertions passed, 0 failed**, across all eleven scenarios:
 
-| Failure | Cause | Whose defect |
-| --- | --- | --- |
-| `.next/cache` stays `root:root` (scenario 1) | The sandbox provides no `ggitech` account, so `chown ggitech:ggitech` cannot succeed | The suite — it never provisions the account |
-| `--rollback` exits `1`, `current` is not repointed and `state/active` is unchanged (scenarios 6 and 8 — six assertions) | The same missing account: on the rollback path the failed `chown` aborts the script through `set -e` | The suite |
-| A release with no artifact exits `4`, not `3` (scenario 9) | `activate_release` resolves the release with `target="$(resolve_release "$sha")"`, so `die 3` ends only the command substitution. `target` is then empty, the release fails *content* validation, and the documented code `3` is unreachable on the deploy path | The activator — a genuine defect, not a test artefact |
+| Scenario | Observed exit codes |
+| --- | --- |
+| 1. Successful first deployment | `0` |
+| 2. Failed first deployment, no previous release | `8` |
+| 3. Successful upgrade | `0` |
+| 4. Failed upgrade followed by a successful rollback | `6` |
+| 5. Failed rollback, then manual recovery once the fault is removed | `7`, then `8`, then `0` |
+| 6. Interrupted activation repaired by `--rollback` | `0` |
+| 7. Repeated activation of the same commit | `0` |
+| 8. Manual rollback to a known-good release | `0` |
+| 9. Missing, malformed and malicious artifacts | `3`, `4`, `2` |
+| 10. Concurrent activation refused | `5` |
+| 11. A release that cannot be prepared | `4` |
 
-Three things follow, and none of them have been fixed yet:
+After the suite exited, the runner was inspected and was clean: no `ggitech`
+account or group had been created, there was no `/var/www/ggitech`, no bind mount
+from the suite survived, and `/etc/passwd` still held zero `ggitech` entries.
+That is the evidence for the isolation claim above — the service identity is
+supplied by private NSS copies inside the suite's own mount namespace, and the
+host's accounts are never created, modified or deleted.
 
-- The `chown` of `.next/cache` is not itself error-checked. `activate_release`
-  is called as `activate_release "$1" || die 6 …`, and that `||` suppresses
-  `set -e` inside the function, so the `chown` can fail while the activation
-  still reports success. On the rollback path the same failure aborts with exit
-  `1`, which is not one of the documented codes.
-- Exit `3` is reachable for a symlinked or escaping release, but not for a
-  release directory that simply does not exist on the deploy path — which is
-  the case the rollback test plan's "missing artifact" step depends on.
-- Because the suite has no `ggitech` account, every rollback scenario that
-  re-activates an existing release is unverified, not merely untested.
+The first run of the suite (94 passed, 3 failed) found two real defects in the
+activator and one in the suite itself. All three were corrected before the
+passing run above:
 
-The suite needs to provision the service account it re-parents files to, and
-the `resolve_release` call needs to stop swallowing its own `die`, before this
-section can say "proven".
+| Defect | Correction |
+| --- | --- |
+| A release that did not exist produced exit `4`, not the documented `3` | `resolve_release` now returns non-zero instead of calling `die`, and `activate_release` performs the `exit` outside the command substitution, so code `3` propagates |
+| A failed `mkdir`, `chown` or `chmod` in `prepare_release` was unchecked, and since `activate_release` is invoked in a `||` list, `set -e` is suppressed inside it — an unprepared release could have been promoted live | Every step of `prepare_release` is checked and returns non-zero; the call site exits `4` **before** the symlink moves, so the live release keeps serving |
+| Scenario 8 (the suite, not the activator): the fixture left the stub health endpoint reporting the release the rollback had just replaced, so the activator correctly refused to claim a rollback it could not verify | The fixture now moves with the restart, which is what a real rollback does |
 
 **Not proven by these tests** — these need the real server:
 
