@@ -756,6 +756,12 @@ scenario_8_manual_rollback() {
   run_activator "$SHA_B"
   expect_rc 0 "the upgrade activates"
 
+  # A rollback restarts the service on the previous release, so the health
+  # endpoint would now report that release. The stub curl reads this file, so it
+  # has to be moved with the symlink: leaving it on SHA_B models a host where the
+  # service never came back, which is the unrecoverable case already covered by
+  # scenario 5, not the manual rollback this scenario is about.
+  printf '%s\n' "$SHA_A" >"$STATE/health-sha"
   run_activator --rollback
   expect_rc 0 "--rollback restores the known-good release"
   assert_current_is "$SHA_A" "current points at the restored release"
