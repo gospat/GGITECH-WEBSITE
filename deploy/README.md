@@ -74,7 +74,7 @@ The rules that follow from that:
 | `deploy/bin/ggitech-activate` | Root-owned activation script — the only privileged command `deploy` may run |
 | `deploy/sudoers/ggitech-activate` | The single sudoers rule that grants it |
 | `deploy/systemd/ggitech.service` | The application service |
-| `deploy/nginx/ggitech.conf` | Reverse proxy for `ggitech.dev` |
+| `deploy/nginx/ggitech.conf` | Reverse proxy for the canonical host `ggitech.dev`, plus the permanent redirects onto it |
 | `deploy/tests/run-activation-tests.sh` | Linux-only integration tests for the activation and rollback state machine |
 
 ---
@@ -428,7 +428,18 @@ lineage `ggitech.dev`, and the ACME location assumes the `--webroot` path
 ```bash
 sudo ls -1 /etc/letsencrypt/live/
 sudo grep -H -E 'authenticator|webroot_path' /etc/letsencrypt/renewal/*.conf
+
+# The certificate must carry www as well as the apex: a browser asking for
+# https://www.ggitech.dev has to finish a TLS handshake before it can be told
+# to go anywhere else, so a lineage without www cannot deliver the redirect.
+sudo openssl x509 -in /etc/letsencrypt/live/ggitech.dev/fullchain.pem \
+  -noout -ext subjectAltName
 ```
+
+Expect `DNS:ggitech.dev` and `DNS:www.ggitech.dev` in that output. If www is
+absent, add it to the same lineage and reload — `sudo certbot --nginx -d
+ggitech.dev -d www.ggitech.dev` on an existing lineage extends it rather than
+replacing it — then install the vhost. Never reissue from scratch.
 
 If the lineage name differs, edit **only** the two `ssl_certificate` lines in
 `deploy/nginx/ggitech.conf` before installing it. If `authenticator` is `nginx`
@@ -483,6 +494,40 @@ finish.
 The old configuration is still at `$SITE.bak.<timestamp>` afterwards. Keep it
 until step 10 has passed, then remove it.
 
+#### Canonical domain
+
+`ggitech.dev` is the canonical host, and it is the only host that serves the
+application. The vhost enforces that with permanent redirects, all of which
+carry the path and the query string across:
+
+| Request | Response |
+| --- | --- |
+| `http://ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `http://www.ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `https://www.ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `https://ggitech.dev/services?utm_source=x` | `200`, proxied to `127.0.0.1:3213` |
+
+Two details are worth knowing, because the obvious alternative is wrong:
+
+- **The redirect target is spelled out, not built from `$host`.** `$host` is the
+  name the client asked for, so a redirect written `https://$host$request_uri`
+  on the www vhost answers `https://www.ggitech.dev/...` — the same host that
+  then has to redirect again. A literal target cannot loop.
+- **www gets its own `server` block for HTTPS.** A client asking for
+  `https://www.ggitech.dev` must complete the TLS handshake before it can be
+  sent anywhere, so www has to be a name nginx answers for. Without that block
+  the request would fall through to the default server for port 443 — the
+  application — and the site would be served on two hostnames.
+
+The ACME location sits in the plain-HTTP block ahead of the redirect, and that
+block answers both names, so renewals keep working for a lineage that covers
+both — including `certbot`'s HTTP-01 validation for a challenge it fetches over
+`http://www.ggitech.dev/...`.
+
+Nothing about the redirect needs a certificate of its own: the www block reuses
+the existing lineage, so the check at the top of this step is the only
+prerequisite.
+
 **If the public site breaks here, the application is not the problem.** Put the
 backup back and reload — that restores exactly the configuration which was
 serving `https://ggitech.dev` a moment ago:
@@ -500,6 +545,26 @@ curl -fsS -o /dev/null -w 'bells=%{http_code}\n' http://127.0.0.1:3100/
 sudo nginx -t
 sudo certbot renew --dry-run --cert-name ggitech.dev
 ```
+
+Then check the canonical redirects. `%{redirect_url}` reports where a redirect
+points without following it, which is what makes the target visible:
+
+```bash
+# Every non-canonical form lands on https://ggitech.dev, path and query intact.
+for url in 'http://ggitech.dev/services?utm_source=x' \
+           'http://www.ggitech.dev/services?utm_source=x' \
+           'https://www.ggitech.dev/services?utm_source=x'; do
+  printf '%-46s -> ' "$url"
+  curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "$url"
+done
+
+# The canonical host serves the site, and it does not redirect.
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' https://ggitech.dev/
+```
+
+Every line of the first block must read `301 https://ggitech.dev/...`, and the
+last line must be `200` with an empty redirect URL. A `301` on the last line
+would mean the canonical host is redirecting to itself.
 
 `The certificate is intact and still renews` is the check that matters for the
 ACME webroot installed in step 9: a wrong `root` keeps serving the
