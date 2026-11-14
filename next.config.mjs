@@ -30,15 +30,25 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // 'unsafe-inline' covers Next.js's inline bootstrap script; dropping it
+      // needs a per-request nonce issued from middleware, which would force
+      // every route to render dynamically and lose static prerendering.
+      // 'unsafe-eval' is only needed by webpack's dev source maps, so it never
+      // ships in a production bundle.
+      `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+      // framer-motion writes inline style attributes, so this has to stay.
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
       "connect-src 'self'",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
       "form-action 'self'",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "object-src 'none'",
+      // Only meaningful over TLS, and it would break local http development.
+      ...(isProduction ? ["upgrade-insecure-requests"] : []),
     ].join("; "),
   },
 ];

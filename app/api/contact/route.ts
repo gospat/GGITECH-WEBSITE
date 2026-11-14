@@ -4,13 +4,18 @@ import { validateContactMessage } from "@/lib/contactMessage";
 import { getMailEnv } from "@/lib/server/env";
 import { getTransporter } from "@/lib/server/mailer";
 import { rateLimit } from "@/lib/server/rateLimit";
-import { getRequestIp, getUserAgent } from "@/lib/server/requestMeta";
+import { getRequestIp, getUserAgent, isSameOriginRequest } from "@/lib/server/requestMeta";
 import { site } from "@/lib/site";
 import { isRecord } from "@/lib/validation";
 
 const MAX_REQUESTS_PER_HOUR = 5;
 
 export async function POST(req: NextRequest) {
+  // Checked before any work so a third-party page cannot spend our SMTP quota.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ ok: false, error: "Request blocked." }, { status: 403 });
+  }
+
   let payload: unknown;
 
   try {
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest) {
   const ip = getRequestIp(req);
   const userAgent = getUserAgent(req);
 
-  const limit = rateLimit({
+  const limit = await rateLimit({
     key: `contact:${ip || userAgent || "unknown"}`,
     limit: MAX_REQUESTS_PER_HOUR,
     windowMs: 60 * 60 * 1000,

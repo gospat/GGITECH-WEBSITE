@@ -5,10 +5,15 @@ import { site } from "@/lib/site";
 import { getMailEnv } from "@/lib/server/env";
 import { getTransporter } from "@/lib/server/mailer";
 import { buildProjectBriefPdf } from "@/lib/server/projectBriefPdf";
-import { getRequestIp, getUserAgent } from "@/lib/server/requestMeta";
+import { getRequestIp, getUserAgent, isSameOriginRequest } from "@/lib/server/requestMeta";
 import { rateLimit } from "@/lib/server/rateLimit";
 
 export async function POST(req: NextRequest) {
+  // Checked before any work so a third-party page cannot spend our SMTP quota.
+  if (!isSameOriginRequest(req)) {
+    return NextResponse.json({ ok: false, error: "Request blocked." }, { status: 403 });
+  }
+
   let payload: unknown;
 
   try {
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
   const ip = getRequestIp(req);
   const ua = getUserAgent(req);
   const limiterKey = ip || ua || "unknown";
-  const limitResult = rateLimit({ key: limiterKey, limit: 3, windowMs: 60 * 60 * 1000 });
+  const limitResult = await rateLimit({ key: limiterKey, limit: 3, windowMs: 60 * 60 * 1000 });
   if (!limitResult.ok) {
     return NextResponse.json(
       { ok: false, error: "Too many requests. Please try again later." },
