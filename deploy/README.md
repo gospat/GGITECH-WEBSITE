@@ -229,6 +229,10 @@ test -f /var/www/ggitech/shared/.env.production && echo "env file present"
 grep -c . /var/www/ggitech/shared/.env.production      # non-empty
 ```
 
+Until steps 1–7 are complete, every deployment fails at the preflight gate
+before anything is transferred, with a message pointing back here. Nothing
+partial ever reaches the application tree.
+
 ---
 
 ## Routine deployment

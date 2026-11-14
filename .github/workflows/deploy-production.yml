@@ -200,14 +200,23 @@ jobs:
           } > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
-      # Informational: recorded so a failure can be traced to the revision that
-      # was live beforehand. Never allowed to fail the deploy on its own.
-      - name: Record the release currently live
-        continue-on-error: true
+      # Gate, not just a report. If the activator is absent, the sudoers rule is
+      # missing or the application tree is incomplete, this deployment cannot
+      # possibly succeed, and failing here says so clearly instead of letting a
+      # 26 MB transfer complete and reporting a rollback of nothing. It also
+      # records the revision that is live beforehand, so a later failure can be
+      # traced to what it replaced.
+      - name: Confirm the server-side deployment tooling is ready
         run: |
-          set -euo pipefail
-          echo "Release live before this deployment:"
-          ssh ggitech-production 'sudo -n /usr/local/bin/ggitech-activate --status'
+          set -uo pipefail
+
+          if ! status_output="$(ssh ggitech-production 'sudo -n /usr/local/bin/ggitech-activate --status' 2>&1)"; then
+            printf '%s\n' "$status_output"
+            echo "::error::the server-side deployment tooling is not ready. Complete the one-time setup in deploy/README.md (activator, sudoers rule, application tree) before deploying."
+            exit 1
+          fi
+
+          printf 'Release live before this deployment:\n%s\n' "$status_output"
 
       - name: Upload the release to the server
         run: |
