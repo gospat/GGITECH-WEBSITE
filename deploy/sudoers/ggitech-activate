@@ -1,0 +1,20 @@
+# /etc/sudoers.d/ggitech-activate
+#
+# Grants the deployment account the ability to run exactly one command: the
+# release activator. There is deliberately no wildcard, no shell binary and no
+# general-purpose executor here, so a leaked deployment key cannot be turned
+# into root on this host. Everything the deployment is allowed to do is
+# expressed inside /usr/local/bin/ggitech-activate, which validates its own
+# arguments and confines every path to /var/www/ggitech.
+#
+# Install (as an administrator):
+#   sudo install -o root -g root -m 0440 \
+#     deploy/sudoers/ggitech-activate /etc/sudoers.d/ggitech-activate
+#   sudo visudo -c
+#   sudo -l -U deploy        # must list this one command and nothing else
+#
+# `deploy` holds no other sudo rights and is not a member of any privileged
+# group. If a future workflow needs another privileged operation, add a
+# purpose-built command for it rather than widening this rule.
+
+deploy ALL=(root) NOPASSWD: /usr/local/bin/ggitech-activate
