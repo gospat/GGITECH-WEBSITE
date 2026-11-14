@@ -1,0 +1,54 @@
+
+name: GGITECH Deployment Connection Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-connection:
+    name: Verify DigitalOcean SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GGITECH_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.GGITECH_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" \
+            > ~/.ssh/id_ed25519
+
+          chmod 600 ~/.ssh/id_ed25519
+
+          printf '%s\n' "$SSH_KNOWN_HOSTS" \
+            > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test production server access
+        env:
+          DEPLOY_HOST: ${{ secrets.GGITECH_HOST }}
+          DEPLOY_USER: ${{ secrets.GGITECH_USER }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'set -e
+             test "$(whoami)" = deploy
+             test "$(hostname)" = ggitech
+             test -d /home/deploy/uploads
+             echo "GGITECH SSH CONNECTION SUCCESSFUL"'
