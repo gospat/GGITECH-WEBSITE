@@ -9,10 +9,27 @@ systemd unit, its own nginx `server` block and its own database. The single
 shared resource is the nginx process itself, and adding a vhost to it is a
 graceful reload.
 
-## This installs over a server that is already working
+## This installs over a server that is already serving traffic
 
-GGITECH is already installed on that host, so every step below is written to be
-idempotent and **non-destructive**. The facts this runbook is written against:
+`https://ggitech.dev` is already served by an existing nginx virtual host on
+that host, but the **Next.js application itself has never been installed or
+started**: there is no release under `/var/www/ggitech/releases`, and nothing is
+listening on port 3213. Only the server-side scaffolding — the directories, the
+environment file and the systemd unit — is already in place.
+
+That gap is what orders the whole runbook. The application is installed and its
+**first release is activated and verified on `127.0.0.1:3213` while the existing
+GGITECH vhost is left exactly as it is**. The vhost that proxies to the
+application is installed last, in step 9, once something is really answering on
+that port, so the working site is never pointed at a port with nothing behind
+it.
+
+Nothing in the deployment depends on the vhost having been updated:
+`ggitech-activate` reaches the application directly on `127.0.0.1:3213`, and the
+deploy workflow's own health check does the same over SSH. Neither ever fetches
+`https://ggitech.dev`.
+
+The facts this runbook is written against:
 
 | Fact | Value |
 | --- | --- |
@@ -23,11 +40,12 @@ idempotent and **non-destructive**. The facts this runbook is written against:
 | Deployment account | `deploy` |
 | Node.js | 22 |
 | Application port | `3213` (loopback only) |
-| HTTPS | already working for `ggitech.dev` |
+| **Next.js application** | **not installed and not running** — nothing listens on 3213 |
+| HTTPS | `ggitech.dev` already served by the existing vhost |
 | Let's Encrypt HTTP-01 webroot | `/var/www/ggitech-acme` |
 | Existing nginx vhost | `/etc/nginx/sites-available/ggitech` → `sites-enabled/ggitech` |
 | Environment file | `/var/www/ggitech/shared/.env.production` (already exists) |
-| Application directories | already exist |
+| Application directories | already exist, but hold no release |
 | systemd unit | registered, **not started** |
 | Other services | Bells portal on 3100, MySQL |
 
@@ -40,6 +58,8 @@ The rules that follow from that:
 - **Permissions are changed in place** (`chown`/`chmod` on the existing file),
   never by deleting and recreating it.
 - **The Bells University configuration and its certificate are never edited.**
+- **The reverse proxy is replaced last**, only after the first release is live
+  and verified on `127.0.0.1:3213`.
 - Every step is safe to run twice.
 
 ---
@@ -143,8 +163,14 @@ Run all of this as `admin` (or any sudo-capable account) — never as `deploy`.
 Run it from a checkout of this repository on the server, or copy the files
 across first.
 
-Steps 1–7 are ordered and each one is safe to re-run. Nothing here deletes a
-directory, truncates a file or reissues a certificate.
+Steps 1–7 install everything the deployment needs; step 8 activates the first
+release and proves it on loopback; **step 9 is the only step that changes the
+public site, and it runs last**. Each step is safe to re-run. Nothing here
+deletes a directory, truncates a file or reissues a certificate.
+
+> **The existing GGITECH vhost is not touched until step 9.** While steps 1–8
+> run, `https://ggitech.dev` keeps being served by the configuration that is
+> already in `/etc/nginx/sites-available/ggitech`.
 
 > **Do not start the service yet.** The unit's
 > `WorkingDirectory=/var/www/ggitech/current` does not resolve until the first
@@ -298,10 +324,90 @@ sudo systemctl enable ggitech.service
 `enable` only wires the unit into the boot targets. **Do not start it** — the
 first deployment does, once a release exists for `current` to point at.
 
-### 6. The reverse proxy
+### 6. The upload directory
 
-This is the step where it is easiest to break a working server, because
-`ggitech.dev` is **already served** by a vhost that has no `.conf` suffix:
+```bash
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/uploads
+```
+
+The existing SSH connection test asserts this directory exists, and the
+workflow uploads into it. It is the only path outside `/var/www/ggitech` that
+the activation script reads from, and it is never read before the upload is
+re-owned and re-validated.
+
+### 7. Verify before the first deploy
+
+Everything here is read-only. Run it after steps 1–6 and before the first
+deployment. The existing GGITECH vhost is still in place at this point and
+should still be serving `https://ggitech.dev` — check that it is, because it is
+the thing step 9 is about to change.
+
+```bash
+sudo visudo -c                                          # sudoers parses
+sudo -l -U deploy                                       # exactly one command
+sudo systemd-analyze verify /etc/systemd/system/ggitech.service
+sudo nginx -t                                           # the CURRENT vhosts parse
+sudo -u deploy ssh -o BatchMode=yes localhost true      # deploy can SSH out (not required)
+sudo systemctl is-enabled ggitech.service                # enabled, not running
+sudo systemctl is-active ggitech.service && echo "UNEXPECTED: it is running"
+
+# The environment file is present, non-empty and correctly permissioned.
+sudo stat -c '%n %U:%G %a' /var/www/ggitech/shared/.env.production
+
+# Exactly one GGITECH vhost is enabled, and nothing is listening on 3213 yet.
+sudo grep -rl 'ggitech\.dev' /etc/nginx/sites-enabled/ | wc -l
+ss -lntp | grep 3213 || echo "nothing on 3213 yet — expected"
+
+# The public site still works on the configuration that was already there.
+curl -fsS -o /dev/null -w 'public=%{http_code}\n' https://ggitech.dev/
+
+# The certificate is intact and still renews.
+sudo certbot renew --dry-run --cert-name ggitech.dev
+
+# Node 22, matching what CI builds with.
+node --version
+
+# The existing services were not disturbed.
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3100/ || true
+systemctl is-active mysql
+```
+
+Until steps 1–6 are complete, every deployment fails at the preflight gate
+before anything is transferred, with a message pointing back here. Nothing
+partial ever reaches the application tree.
+
+### 8. First deployment — activate, then verify on 3213
+
+Nothing is listening on 3213 yet, and the public site is still being served by
+the vhost that was already there. That is deliberate: the first release is
+activated and proven **on loopback**, so if it is wrong, the public site was
+never pointing at it.
+
+Run **Deploy to production** from the Actions tab (`workflow_dispatch`) and
+watch the run. Then verify on the host, without trusting the workflow:
+
+```bash
+curl -fsS http://127.0.0.1:3213/api/health     # status ok, release = the deployed SHA
+sudo /usr/local/bin/ggitech-activate --status  # active=<sha>, verified=yes
+sudo systemctl status ggitech.service --no-pager | head -5
+ls -l /var/www/ggitech/current                 # -> releases/<sha>
+```
+
+Do **not** go on to step 9 until `/api/health` answers on `127.0.0.1:3213` with
+the SHA that was just deployed, and `--status` reports `verified=yes`. If it does
+not, the deployment failed — and there is no rush, because the public site is
+still being served by the old vhost, so waiting costs nothing. A first
+deployment that fails has no previous release to fall back to and exits `8`; see
+Troubleshooting.
+
+The application is running, but it is **not yet publicly reachable**. Step 9
+connects the two.
+
+### 9. The reverse proxy — only once 3213 answers
+
+Now, and not before, point the existing GGITECH vhost at the application. This
+is the step where it is easiest to break a working server, because `ggitech.dev`
+is **already served** by a vhost that has no `.conf` suffix:
 
 ```
 /etc/nginx/sites-available/ggitech   →  /etc/nginx/sites-enabled/ggitech
@@ -375,57 +481,30 @@ connections, including the portal's, are served by the old workers until they
 finish.
 
 The old configuration is still at `$SITE.bak.<timestamp>` afterwards. Keep it
-until the first production deployment has succeeded, then remove it.
+until step 10 has passed, then remove it.
 
-### 7. The upload directory
+**If the public site breaks here, the application is not the problem.** Put the
+backup back and reload — that restores exactly the configuration which was
+serving `https://ggitech.dev` a moment ago:
 
 ```bash
-sudo install -d -o deploy -g deploy -m 0700 /home/deploy/uploads
+sudo cp -a "$SITE".bak.* "$SITE" && sudo nginx -t && sudo systemctl reload nginx
+sudo /usr/local/bin/ggitech-activate --status
 ```
 
-The existing SSH connection test asserts this directory exists, and the
-workflow uploads into it. It is the only path outside `/var/www/ggitech` that
-the activation script reads from, and it is never read before the upload is
-re-owned and re-validated.
-
-### 8. Verify before the first deploy
-
-Everything here is read-only. Run it after steps 1–7 and before enabling the
-first deployment.
+### 10. Verify the public site
 
 ```bash
-sudo visudo -c                                          # sudoers parses
-sudo -l -U deploy                                       # exactly one command
-sudo systemd-analyze verify /etc/systemd/system/ggitech.service
-sudo nginx -t                                           # every vhost parses
-sudo -u deploy ssh -o BatchMode=yes localhost true      # deploy can SSH out (not required)
-sudo systemctl is-enabled ggitech.service                # enabled, not running
-sudo systemctl is-active ggitech.service && echo "UNEXPECTED: it is running"
-
-# The environment file is present, non-empty and correctly permissioned.
-sudo stat -c '%n %U:%G %a' /var/www/ggitech/shared/.env.production
-
-# Exactly one GGITECH vhost is enabled.
-sudo grep -rl 'ggitech\.dev' /etc/nginx/sites-enabled/ | wc -l
-
-# The certificate is intact and still renews from the expected webroot.
+curl -fsS -o /dev/null -w 'https=%{http_code}\n' https://ggitech.dev/
+curl -fsS -o /dev/null -w 'bells=%{http_code}\n' http://127.0.0.1:3100/
+sudo nginx -t
 sudo certbot renew --dry-run --cert-name ggitech.dev
-
-# Node 22, matching what CI builds with.
-node --version
-
-# The existing services were not disturbed.
-curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3100/ || true
-systemctl is-active mysql
 ```
 
-`The certificate is intact and still renews` is the check that matters for step
-6: a wrong `root` in the ACME location keeps serving the already-issued
-certificate perfectly and only fails at renewal, roughly 60 days later.
-
-Until steps 1–7 are complete, every deployment fails at the preflight gate
-before anything is transferred, with a message pointing back here. Nothing
-partial ever reaches the application tree.
+`The certificate is intact and still renews` is the check that matters for the
+ACME webroot installed in step 9: a wrong `root` keeps serving the
+already-issued certificate perfectly and only fails at renewal, roughly 60 days
+later.
 
 ---
 
@@ -513,10 +592,11 @@ ssh deploy@<host> 'sudo -n /usr/local/bin/ggitech-activate --rollback'
 ssh deploy@<host> 'curl -fsS http://127.0.0.1:3213/api/health'
 ```
 
-### Tested rollback behaviour
+### Rollback behaviour covered by the integration tests
 
 `deploy/tests/run-activation-tests.sh` drives the real script through each of
-these cases and asserts both the exit code and the resulting on-disk state:
+these cases and asserts both the exit code and the resulting on-disk state.
+Read **Execution status** under *Testing* before treating any row as verified:
 
 | Scenario | Expected outcome |
 | --- | --- |
@@ -580,7 +660,8 @@ A `200` alone is not treated as success. Activation requires **all** of:
 | `RECOVERY UNVERIFIED` in the run log | The workflow tried to recover and nothing reported healthy | Do not retry blindly — inspect the host first |
 | exit `1`, "production environment file is missing" | Step 2 was skipped, or the file was moved | Re-run step 2 — it will not truncate the existing file |
 | exit `1`, "is missing or is a symlink" | A base directory is absent or was replaced by a link | Re-run step 1; check with `ls -ld /var/www/ggitech /var/www/ggitech/releases` |
-| Two GGITECH vhosts enabled | A second `ggitech.conf` was added | Re-run step 6; it removes the duplicate after confirming it is a GGITECH vhost |
+| Two GGITECH vhosts enabled | A second `ggitech.conf` was added | Re-run step 9; it removes the duplicate after confirming it is a GGITECH vhost |
+| The public site returns 502/503 straight after installation | Step 9 ran before step 8, so the vhost proxies to a port with nothing on it | The application has not been deployed yet — complete step 8. To restore the old site meanwhile, put `$SITE.bak.<ts>` back and reload nginx |
 | Site returns 503 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
 | `sudo: a password is required` | NOPASSWD rule missing or wrong | Reinstall step 4; the workflow always calls `sudo -n` |
 | `/api/health` returns 503 `"status":"degraded"` | `.next/BUILD_ID` unreadable | The release tree is not readable by `ggitech`; `prepare_release` should have fixed it |
@@ -627,10 +708,10 @@ shellcheck -S style deploy/bin/ggitech-activate deploy/tests/run-activation-test
 
 ### The activation integration tests
 
-`deploy/tests/run-activation-tests.sh` proves the activation and rollback state
-machine — the part of this system where a mistake costs production. It runs the
-**real, unmodified** activator inside a private mount namespace, with temporary
-directories bind-mounted over `/var/www/ggitech`, `/home/deploy/uploads`,
+`deploy/tests/run-activation-tests.sh` exercises the activation and rollback
+state machine — the part of this system where a mistake costs production. It
+runs the **real, unmodified** activator inside a private mount namespace, with
+temporary directories bind-mounted over `/var/www/ggitech`, `/home/deploy/uploads`,
 `/var/log/ggitech` and `/run/ggitech-activate.lock`, and stub `systemctl`,
 `journalctl` and `curl` bind-mounted over the real ones.
 
@@ -649,7 +730,7 @@ Runtime is about five minutes: three scenarios deliberately wait out the
 activator's full 60-second health-check timeout in order to prove the failure
 paths.
 
-**Proven by these tests:** argument validation including unexpected extra
+**What the suite asserts:** argument validation including unexpected extra
 arguments and unknown options; rejection of malformed release ids; rejection of
 incomplete artifacts, a wrong `RELEASE_SHA`, an empty `BUILD_ID`, absolute
 symlinks, symlinks that escape the release, FIFOs, setuid files and a symlinked
@@ -657,6 +738,39 @@ upload path; that release code ends up `root:root` and not writable by the
 service account while `.next/cache` is handed to `ggitech:ggitech` at `0750`;
 and each of the ten scenarios in the rollback table above, including the exact
 exit code for every outcome.
+
+#### Execution status
+
+The suite was executed exactly once, on a throwaway `ubuntu-26.04` GitHub
+Actions runner. It has **never been run against the DigitalOcean host**, and no
+part of this deployment system has been activated anywhere.
+
+The result was **78 assertions passed, 8 failed**, so the suite does **not yet**
+prove the state machine end to end and the assertions listed above are asserted
+rather than verified.
+
+| Failure | Cause | Whose defect |
+| --- | --- | --- |
+| `.next/cache` stays `root:root` (scenario 1) | The sandbox provides no `ggitech` account, so `chown ggitech:ggitech` cannot succeed | The suite — it never provisions the account |
+| `--rollback` exits `1`, `current` is not repointed and `state/active` is unchanged (scenarios 6 and 8 — six assertions) | The same missing account: on the rollback path the failed `chown` aborts the script through `set -e` | The suite |
+| A release with no artifact exits `4`, not `3` (scenario 9) | `activate_release` resolves the release with `target="$(resolve_release "$sha")"`, so `die 3` ends only the command substitution. `target` is then empty, the release fails *content* validation, and the documented code `3` is unreachable on the deploy path | The activator — a genuine defect, not a test artefact |
+
+Three things follow, and none of them have been fixed yet:
+
+- The `chown` of `.next/cache` is not itself error-checked. `activate_release`
+  is called as `activate_release "$1" || die 6 …`, and that `||` suppresses
+  `set -e` inside the function, so the `chown` can fail while the activation
+  still reports success. On the rollback path the same failure aborts with exit
+  `1`, which is not one of the documented codes.
+- Exit `3` is reachable for a symlinked or escaping release, but not for a
+  release directory that simply does not exist on the deploy path — which is
+  the case the rollback test plan's "missing artifact" step depends on.
+- Because the suite has no `ggitech` account, every rollback scenario that
+  re-activates an existing release is unverified, not merely untested.
+
+The suite needs to provision the service account it re-parents files to, and
+the `resolve_release` call needs to stop swallowing its own `die`, before this
+section can say "proven".
 
 **Not proven by these tests** — these need the real server:
 
@@ -675,27 +789,30 @@ exit code for every outcome.
 
 Run on the server, in order, before enabling automatic deployment.
 
-1. Complete installation steps 1–8 and run the read-only verification block.
-   Confirm `nginx -t` passes, `sudo -l -U deploy` lists one command, the service
-   is enabled but not active, and `certbot renew --dry-run` succeeds.
+1. Complete installation steps 1–7 and run the read-only verification block.
+   Confirm `nginx -t` passes on the **existing** vhosts, `sudo -l -U deploy`
+   lists one command, the service is enabled but not active,
+   `certbot renew --dry-run` succeeds, and `https://ggitech.dev` is still being
+   served by the configuration that was already on the host.
 2. Record the pre-deployment state, so the first activation has a "before" to
    compare against:
 
    ```bash
    sudo /usr/local/bin/ggitech-activate --status     # expect: active=<empty>, verified=no
    ls -A /var/www/ggitech/releases/                  # expect: empty
+   ss -lntp | grep 3213 || echo "nothing listening yet"
    ```
 
 3. Trigger the workflow with **Deploy to production** (`workflow_dispatch`) and
    watch it. Expect: quality and audit jobs pass, the artifact is uploaded, the
    activation reports exit `0`, and the run reports the release is live.
-4. Verify independently, without trusting the workflow:
+4. Verify independently, without trusting the workflow. Step 9 has not run yet,
+   so every check here is on loopback and the public site is still the old one:
 
    ```bash
    curl -fsS http://127.0.0.1:3213/api/health     # status ok, release = the deployed SHA
-   curl -fsS -I https://ggitech.dev/              # 200
-   curl -fsS http://127.0.0.1:3100/ -o /dev/null -w '%{http_code}\n'   # Bells portal still up
    sudo /usr/local/bin/ggitech-activate --status  # verified=yes
+   curl -fsS http://127.0.0.1:3100/ -o /dev/null -w '%{http_code}\n'   # Bells portal still up
    ```
 
 5. Confirm the release is read-only to the service account and the cache is not:
@@ -710,6 +827,16 @@ Run on the server, in order, before enabling automatic deployment.
 
    ```bash
    cat /var/www/ggitech/state/active /var/www/ggitech/state/previous
+   ```
+
+7. Only now do step 9 (replace the vhost) and step 10, and confirm the public
+   site and the portal together:
+
+   ```bash
+   curl -fsS -o /dev/null -w 'https=%{http_code}\n' https://ggitech.dev/
+   curl -fsS -o /dev/null -w 'bells=%{http_code}\n' http://127.0.0.1:3100/
+   sudo nginx -t
+   sudo grep -rl 'ggitech\.dev' /etc/nginx/sites-enabled/ | wc -l    # 1
    ```
 
 ### Rollback test plan
