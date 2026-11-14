@@ -74,8 +74,9 @@ The rules that follow from that:
 | `deploy/bin/ggitech-activate` | Root-owned activation script — the only privileged command `deploy` may run |
 | `deploy/sudoers/ggitech-activate` | The single sudoers rule that grants it |
 | `deploy/systemd/ggitech.service` | The application service |
-| `deploy/nginx/ggitech.conf` | Reverse proxy for `ggitech.dev` |
+| `deploy/nginx/ggitech.conf` | Reverse proxy for the canonical host `ggitech.dev`, plus the permanent redirects onto it |
 | `deploy/tests/run-activation-tests.sh` | Linux-only integration tests for the activation and rollback state machine |
+| `deploy/tests/run-nginx-validation.sh` | Linux-only validation of the vhost against a real nginx: canonical redirects, proxy headers, ACME and the fallback |
 
 ---
 
@@ -428,7 +429,18 @@ lineage `ggitech.dev`, and the ACME location assumes the `--webroot` path
 ```bash
 sudo ls -1 /etc/letsencrypt/live/
 sudo grep -H -E 'authenticator|webroot_path' /etc/letsencrypt/renewal/*.conf
+
+# The certificate must carry www as well as the apex: a browser asking for
+# https://www.ggitech.dev has to finish a TLS handshake before it can be told
+# to go anywhere else, so a lineage without www cannot deliver the redirect.
+sudo openssl x509 -in /etc/letsencrypt/live/ggitech.dev/fullchain.pem \
+  -noout -ext subjectAltName
 ```
+
+Expect `DNS:ggitech.dev` and `DNS:www.ggitech.dev` in that output. If www is
+absent, add it to the same lineage and reload — `sudo certbot --nginx -d
+ggitech.dev -d www.ggitech.dev` on an existing lineage extends it rather than
+replacing it — then install the vhost. Never reissue from scratch.
 
 If the lineage name differs, edit **only** the two `ssl_certificate` lines in
 `deploy/nginx/ggitech.conf` before installing it. If `authenticator` is `nginx`
@@ -483,6 +495,40 @@ finish.
 The old configuration is still at `$SITE.bak.<timestamp>` afterwards. Keep it
 until step 10 has passed, then remove it.
 
+#### Canonical domain
+
+`ggitech.dev` is the canonical host, and it is the only host that serves the
+application. The vhost enforces that with permanent redirects, all of which
+carry the path and the query string across:
+
+| Request | Response |
+| --- | --- |
+| `http://ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `http://www.ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `https://www.ggitech.dev/services?utm_source=x` | `301 https://ggitech.dev/services?utm_source=x` |
+| `https://ggitech.dev/services?utm_source=x` | `200`, proxied to `127.0.0.1:3213` |
+
+Two details are worth knowing, because the obvious alternative is wrong:
+
+- **The redirect target is spelled out, not built from `$host`.** `$host` is the
+  name the client asked for, so a redirect written `https://$host$request_uri`
+  on the www vhost answers `https://www.ggitech.dev/...` — the same host that
+  then has to redirect again. A literal target cannot loop.
+- **www gets its own `server` block for HTTPS.** A client asking for
+  `https://www.ggitech.dev` must complete the TLS handshake before it can be
+  sent anywhere, so www has to be a name nginx answers for. Without that block
+  the request would fall through to the default server for port 443 — the
+  application — and the site would be served on two hostnames.
+
+The ACME location sits in the plain-HTTP block ahead of the redirect, and that
+block answers both names, so renewals keep working for a lineage that covers
+both — including `certbot`'s HTTP-01 validation for a challenge it fetches over
+`http://www.ggitech.dev/...`.
+
+Nothing about the redirect needs a certificate of its own: the www block reuses
+the existing lineage, so the check at the top of this step is the only
+prerequisite.
+
 **If the public site breaks here, the application is not the problem.** Put the
 backup back and reload — that restores exactly the configuration which was
 serving `https://ggitech.dev` a moment ago:
@@ -500,6 +546,26 @@ curl -fsS -o /dev/null -w 'bells=%{http_code}\n' http://127.0.0.1:3100/
 sudo nginx -t
 sudo certbot renew --dry-run --cert-name ggitech.dev
 ```
+
+Then check the canonical redirects. `%{redirect_url}` reports where a redirect
+points without following it, which is what makes the target visible:
+
+```bash
+# Every non-canonical form lands on https://ggitech.dev, path and query intact.
+for url in 'http://ggitech.dev/services?utm_source=x' \
+           'http://www.ggitech.dev/services?utm_source=x' \
+           'https://www.ggitech.dev/services?utm_source=x'; do
+  printf '%-46s -> ' "$url"
+  curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "$url"
+done
+
+# The canonical host serves the site, and it does not redirect.
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' https://ggitech.dev/
+```
+
+Every line of the first block must read `301 https://ggitech.dev/...`, and the
+last line must be `200` with an empty redirect URL. A `301` on the last line
+would mean the canonical host is redirecting to itself.
 
 `The certificate is intact and still renews` is the check that matters for the
 ACME webroot installed in step 9: a wrong `root` keeps serving the
@@ -665,7 +731,7 @@ A `200` alone is not treated as success. Activation requires **all** of:
 | exit `1`, "is missing or is a symlink" | A base directory is absent or was replaced by a link | Re-run step 1; check with `ls -ld /var/www/ggitech /var/www/ggitech/releases` |
 | Two GGITECH vhosts enabled | A second `ggitech.conf` was added | Re-run step 9; it removes the duplicate after confirming it is a GGITECH vhost |
 | The public site returns 502/503 straight after installation | Step 9 ran before step 8, so the vhost proxies to a port with nothing on it | The application has not been deployed yet — complete step 8. To restore the old site meanwhile, put `$SITE.bak.<ts>` back and reload nginx |
-| Site returns 503 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
+| Site returns 502 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
 | `sudo: a password is required` | NOPASSWD rule missing or wrong | Reinstall step 4; the workflow always calls `sudo -n` |
 | `/api/health` returns 503 `"status":"degraded"` | `.next/BUILD_ID` unreadable | The release tree is not readable by `ggitech`; `prepare_release` should have fixed it |
 | Nothing on 3213 | Service down or bound elsewhere | `ss -lntp \| grep 3213` — must be `127.0.0.1:3213`, never `0.0.0.0` |
@@ -706,7 +772,9 @@ The deployment payload is checked locally with:
 ```bash
 bash -n deploy/bin/ggitech-activate
 bash -n deploy/tests/run-activation-tests.sh
-shellcheck -S style deploy/bin/ggitech-activate deploy/tests/run-activation-tests.sh
+bash -n deploy/tests/run-nginx-validation.sh
+shellcheck -S style deploy/bin/ggitech-activate \
+  deploy/tests/run-activation-tests.sh deploy/tests/run-nginx-validation.sh
 ```
 
 ### The activation integration tests
@@ -798,10 +866,72 @@ passing run above:
 - that `next/image` can write to `.next/cache` under the real
   `ProtectSystem=strict` sandbox — the tests check the permissions, not the
   kernel's response to them;
-- anything about nginx: TLS, the ACME webroot, the 503 fallback, or that the
-  Bells portal on 3100 still works;
+- anything about nginx, because this suite never loads the vhost. The redirect,
+  ACME and fallback behaviour is covered by the vhost validation below, but on a
+  throwaway nginx rather than the production host — so the real certificate, the
+  real Bells portal on 3100 and the live TLS configuration remain unproven here;
 - that the certificate renews (only `certbot renew --dry-run` on the host
   proves that).
+
+### The vhost validation
+
+`deploy/tests/run-nginx-validation.sh` answers the question the activation tests
+cannot: *does `deploy/nginx/ggitech.conf` actually behave the way the runbook
+says it does?* It runs a real nginx, with the vhost installed **unmodified**, and
+drives it with `curl`.
+
+Keeping the artefact unmodified is the whole design. The file hard-codes
+`/var/www/ggitech-acme`, `/etc/letsencrypt/live/ggitech.dev` and
+`/var/log/nginx/ggitech*.log`, so rather than rewrite those paths — which would
+mean testing a file that is not the one that ships — the suite stands them up for
+real on a disposable host: a self-signed certificate carrying both
+`DNS:ggitech.dev` and `DNS:www.ggitech.dev`, an ACME token under the webroot, and
+a throwaway upstream on `127.0.0.1:3213` that records the request headers it
+receives. The only claim made about the file itself is that the installed copy is
+byte-identical to the one in the repository.
+
+```bash
+# On a scratch Linux VM or container, as root. Needs nginx, openssl, curl and
+# python3. This is not the activation suite; it never touches /var/www/ggitech.
+sudo deploy/tests/run-nginx-validation.sh
+```
+
+**What it asserts:** that the installed copy is byte-identical; that `nginx -t`
+passes and warns about nothing; that no directive in the file names the Bells
+portal or port 3100; that `http://ggitech.dev/...`, `http://www.ggitech.dev/...`
+and `https://www.ggitech.dev/...` each answer `301` to
+`https://ggitech.dev/services?utm_source=x&utm_medium=email` — path *and* query
+string preserved, and the www target not itself naming www, which is what would
+make the redirect loop; that the apex answers `200` with no redirect and is
+proxied to the upstream, carrying `host=ggitech.dev`, `xfp=https` and a
+`127.0.0.1` client address; that the ACME challenge returns the token for both
+names; and that a refused upstream is answered by the fallback with
+`Retry-After`, and not by the stock nginx error document.
+
+#### Execution status
+
+Executed in a disposable `ubuntu-24.04` GitHub Actions runner
+(nginx/1.24.0). It has **never been run on the DigitalOcean host**, and the
+production nginx configuration was not read or written by it.
+
+The first run passed 23 assertions and failed 4. All four were defects in the
+test, not in the vhost, and the vhost was left unchanged:
+
+| Failure | Cause | Correction |
+| --- | --- | --- |
+| The ACME token was compared as `acme-token-ok\n` | The fixture wrote the token through `printf '%s\n'`; nginx serves the file byte for byte | The fixture writes it with `printf '%s'`, with no trailing newline |
+| Two assertions expected `503` for a refused upstream, and one missed `Retry-After: 3` | The fallback really does answer `502`, and HTTP/2 lower-cases response header names | The test now asserts `502` and folds the header dump before matching; the two runbook claims that had said `503` were corrected to describe what nginx does |
+
+The corrected suite then reported **28 assertions passed, 0 failed** — and the
+run ends by re-asserting `git diff --exit-code -- deploy/nginx/ggitech.conf`, so
+a passing run also proves the vhost was not edited to make itself pass.
+
+The status is `502` because `error_page 502 @unavailable;` — without the `=` form
+— redirects the response *body* to the named location but keeps the code nginx
+raised. Only `error_page 502 = @unavailable;` would let the location's own `503`
+reach the client. The shipped configuration was deliberately **not** changed to
+add the `=`, because the repository is meant to mirror production, not to
+redefine it.
 
 ### First-deployment test plan
 
@@ -895,8 +1025,13 @@ After each step, confirm the Bells portal is still answering on 3100 and that
 process before starting the new one, so there is a sub-second window in which
 nothing is listening on `127.0.0.1:3213`. During it:
 
-- nginx replaces its own unbranded `502` with a short `503` carrying
-  `Retry-After: 3`;
+- nginx replaces its own unbranded error document with a short, honest message
+  and `Retry-After: 3`. The status stays `502`, which is what nginx raised for a
+  refused upstream: `error_page 502 @unavailable;` redirects the body to the
+  named location but keeps the original code, and only the `=` form
+  (`error_page 502 = @unavailable;`) would let the location's own `503` reach
+  the client. Verified against nginx 1.24 by
+  `deploy/tests/run-nginx-validation.sh`;
 - a request already in flight through an established connection can still fail;
 - the health check and smoke test then run against the new release, which is
   what decides whether the deploy is kept.
