@@ -22,7 +22,14 @@ WorkingDirectory=/var/www/ggitech/current
 ExecStart=/usr/bin/node server.js
 
 # Production secrets live outside every release directory, so rolling back to
-# an older release can never resurrect a stale credential set.
+# an older release can never resurrect a stale credential set. The file is
+# installed 0640 root:ggitech and is read by systemd itself, before the
+# sandbox below is entered, so ProtectSystem=strict cannot affect it.
+#
+# Deliberately NOT prefixed with "-": if the environment file is missing, the
+# application would start without its SMTP configuration and fail only when a
+# visitor submitted a form. Refusing to start is the louder, safer failure, and
+# the deployment activator surfaces it as a failed health check.
 EnvironmentFile=/var/www/ggitech/shared/.env.production
 
 Environment=NODE_ENV=production
@@ -51,6 +58,12 @@ SyslogIdentifier=ggitech
 # --- Sandboxing -------------------------------------------------------------
 # The service account has no shell and no privileges; these settings make the
 # consequences of a compromise in the Node process as small as possible.
+#
+# ProtectSystem=strict is also what enforces the release-permission model
+# established by ggitech-activate's prepare_release(): release code is
+# root-owned and carries no write bit for group or other, and this directive
+# makes the whole filesystem read-only to the service regardless, so even a
+# mis-set mode cannot let the running application modify the code it executes.
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes

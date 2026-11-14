@@ -19,12 +19,22 @@
 # the locations involved are all derived from it.
 #
 # Exit codes:
+#   0  the release is live and passed the health check and the smoke test
 #   1  preflight/environment failure
 #   2  bad usage or malformed release id
 #   3  release missing, or a path that escapes the releases directory
 #   4  release content failed validation
 #   5  another activation holds the lock
-#   6  activation failed (rollback outcome is reported in the log)
+#   6  activation failed, but the previous release was restored and is healthy
+#   7  activation failed AND the rollback did not restore service
+#   8  activation failed and there was no previous release to roll back to
+#
+# Codes 6, 7 and 8 are the three genuinely different outcomes of a failed
+# deployment: recovered, unrecovered, and nothing-to-recover-to. Collapsing them
+# into one code would make the deployment workflow unable to say which happened.
+#
+# The workflow maps these codes onto distinct failure messages, so keep them
+# stable.
 #
 set -Eeuo pipefail
 
@@ -51,6 +61,10 @@ readonly SERVICE=ggitech.service
 readonly APP_PORT=3213
 readonly LOCAL_ORIGIN="http://127.0.0.1:$APP_PORT"
 readonly SITE_ORIGIN=https://ggitech.dev
+
+# The one directory inside a release the application may write to. next/image
+# stores optimised derivatives here and the incremental cache lives here too.
+readonly RUNTIME_CACHE_DIR=.next/cache
 
 readonly HEALTH_TIMEOUT_SECONDS=60
 readonly KEEP_RELEASES=5
@@ -89,19 +103,30 @@ preflight() {
   [[ -d $BASE_DIR && ! -L $BASE_DIR ]] || die 1 "$BASE_DIR is missing or is a symlink"
   [[ -d $RELEASES_DIR && ! -L $RELEASES_DIR ]] ||
     die 1 "$RELEASES_DIR is missing or is a symlink"
+  [[ -d $STATE_DIR && ! -L $STATE_DIR ]] || die 1 "$STATE_DIR is missing or is a symlink"
 
   # Secrets live only here and are never copied into a release, so a rollback
   # cannot resurrect a stale credential set.
   [[ -f $ENV_FILE ]] || die 1 "production environment file is missing: $ENV_FILE"
 
-  mkdir -p "$STATE_DIR"
-  chmod 0755 "$STATE_DIR"
-
   # The deployment account uploads here. If it is absent the workflow will look
   # like it transferred a release successfully and then fail at activation, so
-  # say so now.
+  # say so now. A symlinked upload directory is refused outright: it is a
+  # directory this script is asked to move content out of.
+  if [[ -L $UPLOAD_DIR ]]; then
+    die 1 "upload directory $UPLOAD_DIR is a symlink"
+  fi
   if [[ ! -d $UPLOAD_DIR ]]; then
     log "WARNING: upload directory $UPLOAD_DIR does not exist; uploads will fail"
+  fi
+}
+
+# Exactly one argument, and only the three documented forms. Anything else is a
+# caller mistake and must not be silently ignored: an unrecognised trailing
+# argument is the difference between activating one release and another.
+assert_usage() {
+  if (( $# != 1 )); then
+    die 2 "expected exactly one argument, received $#; usage: ggitech-activate <40-character-git-sha> | --rollback | --status"
   fi
 }
 
@@ -111,11 +136,24 @@ assert_sha() {
   fi
 }
 
+# The state files are written by this script, but they live on disk and could be
+# truncated by a full filesystem or edited by mistake. A value that is not a
+# well-formed release id is reported and treated as absent rather than being
+# allowed to reach a path.
 read_state() {
   local file="$STATE_DIR/$1"
+  local value=""
+
   if [[ -f $file ]]; then
-    head -n 1 "$file"
+    value="$(head -n 1 "$file" | tr -d '[:space:]')"
   fi
+
+  if [[ -n $value && ! $value =~ $SHA_PATTERN ]]; then
+    log "WARNING: ignoring malformed value in $file"
+    return 0
+  fi
+
+  printf '%s\n' "$value"
 }
 
 write_state() {
@@ -129,14 +167,31 @@ current_target() {
   fi
 }
 
+current_release_name() {
+  local target
+  target="$(current_target)"
+  printf '%s\n' "${target##*/}"
+}
+
 # Read-only inspection, used by the deployment workflow to report what it is
 # about to replace. Deliberately machine-readable on stdout with no decoration,
 # because every log line goes to stderr. An unset value prints as empty so that
 # a caller can distinguish "no previous release" from a parse failure.
 print_status() {
-  printf 'active=%s\n' "$(read_state active)"
+  local active live
+  active="$(read_state active)"
+  live="$(current_release_name)"
+
+  printf 'active=%s\n' "$active"
   printf 'previous=%s\n' "$(read_state previous)"
   printf 'current=%s\n' "$(current_target)"
+  # "no" means an activation moved the symlink without ever recording success,
+  # which is the interrupted case --rollback exists to clean up.
+  if [[ -n $active && $live == "$active" ]]; then
+    printf 'verified=yes\n'
+  else
+    printf 'verified=no\n'
+  fi
 }
 
 # Confirms a release directory is a real directory that is a direct child of the
@@ -156,10 +211,59 @@ resolve_release() {
   printf '%s\n' "$resolved"
 }
 
+# Refuses a release tree that could turn a later privileged operation into
+# damage outside the application tree. Run before this script chowns anything,
+# because `chown -R` does not follow symlinks: without this check a link
+# pointing at /etc would sit inside the release, be served, and be one careless
+# future `chmod -R` away from reaching outside the boundary.
+assert_safe_tree() {
+  local dir="$1"
+  local link target resolved node suid
+
+  # Symlinks are legitimate inside node_modules -- the .bin shims are relative
+  # ones -- so they are not banned outright, but nothing may point outside the
+  # release.
+  while IFS= read -r -d '' link; do
+    target="$(readlink -- "$link")" || {
+      log "cannot read symlink $link"
+      return 1
+    }
+    if [[ $target == /* ]]; then
+      log "release contains an absolute symlink: $link -> $target"
+      return 1
+    fi
+    resolved="$(realpath -m --relative-to="$dir" "$(dirname -- "$link")/$target")" || {
+      log "cannot resolve symlink $link"
+      return 1
+    }
+    if [[ $resolved == .. || $resolved == ../* ]]; then
+      log "release contains a symlink that escapes the release: $link -> $target"
+      return 1
+    fi
+  done < <(find "$dir" -type l -print0)
+
+  # Devices, sockets and FIFOs have no place in a web release. Creating or
+  # chowning one inside a directory this script then promotes is a privileged
+  # operation on attacker-chosen content, so the tree is refused instead.
+  while IFS= read -r -d '' node; do
+    log "release contains a special file: $node"
+    return 1
+  done < <(find "$dir" ! -type d ! -type f ! -type l -print0)
+
+  # Normalisation would clear these anyway, but a release that arrives carrying
+  # setuid bits is not something to quietly sanitise.
+  while IFS= read -r -d '' suid; do
+    log "release contains a setuid or setgid file: $suid"
+    return 1
+  done < <(find "$dir" -perm /6000 -print0)
+
+  return 0
+}
+
 # Moves the uploaded artifact from the deployment account's home into the
 # dot-prefixed staging directory. The upload path is derived from the validated
-# release id, so a caller cannot aim this at another directory, and ownership
-# and permissions are normalised here rather than trusted from the upload.
+# release id, so a caller cannot aim this at another directory, and ownership is
+# normalised here rather than trusted from the upload.
 stage_upload() {
   local sha="$1"
   local incoming="$RELEASES_DIR/.incoming-$sha"
@@ -173,11 +277,17 @@ stage_upload() {
     rm -rf -- "$incoming"
     mv -- "$upload" "$incoming" || die 3 "could not stage the uploaded release"
 
-    # The upload is written by an unprivileged account, so nothing about its
-    # metadata is trusted: ownership is forced back to root and setuid/setgid
-    # bits planted on an owned file are stripped.
+    # Validated while it is still the uploader's content, before this script
+    # performs any ownership change on it.
+    assert_safe_tree "$incoming" || {
+      rm -rf -- "$incoming"
+      die 4 "the uploaded artifact for $sha contains unsafe entries and has been removed"
+    }
+
+    # Nothing about the upload's metadata is trusted: ownership is forced back
+    # to root, so a file placed by the deployment account cannot remain
+    # writable by it once promoted into the application tree.
     chown -R root:root -- "$incoming"
-    chmod -R u=rwX,go=rX -- "$incoming"
 
     log "staged the uploaded artifact for $sha"
     return 0
@@ -189,12 +299,13 @@ stage_upload() {
   log "reusing the artifact already staged for $sha"
 }
 
-# The workflow uploads into a dot-prefixed staging directory, so an upload that
-# dies halfway can never be mistaken for a finished release. Promotion is a
-# rename within one filesystem and is therefore atomic.
+# Promotion is a rename within one filesystem and is therefore atomic. The
+# staging directory is dot-prefixed, so an upload that died halfway can never be
+# mistaken for a finished release.
 promote_incoming() {
   local sha="$1"
   local incoming="$RELEASES_DIR/.incoming-$sha"
+  local existing="$RELEASES_DIR/$sha"
 
   [[ -d $incoming ]] || return 0
   [[ ! -L $incoming ]] || die 3 "refusing to promote a symlinked staging path: $incoming"
@@ -205,13 +316,20 @@ promote_incoming() {
     return 0
   fi
 
-  if [[ -e $RELEASES_DIR/$sha ]]; then
+  # `-e` does not follow a dangling symlink, so a symlink is tested for
+  # explicitly. Replacing the live release is refused: the only path that puts
+  # the live release in this situation is a re-deploy, which is handled above.
+  if [[ -e $existing || -L $existing ]]; then
+    [[ ! -L $existing ]] || die 3 "refusing to replace a symlinked release path: $existing"
+    [[ $(current_release_name) != "$sha" ]] ||
+      die 3 "refusing to replace $existing: it is the release currently being served"
+
     log "replacing existing release directory for $sha"
-    rm -rf -- "$RELEASES_DIR/$sha"
+    rm -rf -- "$existing"
   fi
 
-  mv -- "$incoming" "$RELEASES_DIR/$sha" || die 3 "could not promote the staged upload"
-  log "promoted the staged upload to $RELEASES_DIR/$sha"
+  mv -- "$incoming" "$existing" || die 3 "could not promote the staged upload"
+  log "promoted the staged upload to $existing"
 }
 
 # Returns non-zero rather than exiting, so callers can clean up a rejected
@@ -220,17 +338,26 @@ validate_release() {
   local dir="$1"
   local missing=()
   local relative
+  local value
 
   # .next/static and public are absent from `next build`'s standalone output by
   # design and are copied in by the deploy job. Checking for them here means a
   # workflow regression fails the deploy instead of shipping a site whose HTML
   # loads without any CSS or JavaScript.
-  for relative in server.js package.json .next/BUILD_ID .next/static public; do
+  for relative in server.js package.json .next/BUILD_ID .next/static public RELEASE_SHA; do
     [[ -e $dir/$relative ]] || missing+=("$relative")
   done
 
   if ((${#missing[@]} > 0)); then
     log "release is incomplete; missing: ${missing[*]}"
+    return 1
+  fi
+
+  # An empty BUILD_ID would satisfy `-e` and leave /api/health permanently
+  # degraded, so the contents matter as much as the presence.
+  value="$(head -n 1 "$dir/.next/BUILD_ID" 2>/dev/null | tr -d '[:space:]')"
+  if [[ -z $value ]]; then
+    log "release has an empty .next/BUILD_ID"
     return 1
   fi
 
@@ -261,31 +388,62 @@ validate_staged() {
 
   [[ -d $incoming ]] || return 0
 
-  if ! validate_release "$incoming" || ! assert_release_identity "$incoming" "$sha"; then
+  if ! assert_safe_tree "$incoming" ||
+    ! validate_release "$incoming" ||
+    ! assert_release_identity "$incoming" "$sha"; then
     rm -rf -- "$incoming"
     die 4 "the uploaded artifact for $sha was rejected and has been removed"
   fi
 }
 
-# The service runs unprivileged under ProtectSystem=strict, so the tree has to
-# be readable by the application account and the image optimiser needs a
-# writable cache directory.
+# Release code is root-owned and carries no write bit for group or other, so the
+# service can read the code it executes but cannot modify it. The single
+# exception is the runtime cache directory.
 prepare_release() {
   local dir="$1"
+  local cache="$dir/$RUNTIME_CACHE_DIR"
 
-  # next/image writes optimised derivatives here on first request.
-  mkdir -p "$dir/.next/cache"
+  mkdir -p -- "$cache"
 
-  chown -R "$APP_USER:$APP_GROUP" "$dir"
-  chmod -R u=rwX,go=rX "$dir"
+  # `X` grants execute only on directories and on files that already had an
+  # execute bit, so the shape of the tree is preserved rather than every file
+  # being made executable.
+  chown -R root:root -- "$dir"
+  chmod -R u=rwX,go=rX -- "$dir"
+
+  # Handed back to the service account after the recursive chmod above, because
+  # that chmod would otherwise leave it root-owned and read-only and every
+  # optimised image request would fail with a 500.
+  chown -- "$APP_USER:$APP_GROUP" "$cache"
+  chmod 0750 -- "$cache"
 }
 
 # Replacing the symlink with rename(2) means the link never has a moment where
 # it points at nothing.
 switch_to() {
   local dir="$1"
-  ln -sfn -- "$dir" "$CURRENT_LINK.new"
-  mv -T -- "$CURRENT_LINK.new" "$CURRENT_LINK"
+  local staging="$CURRENT_LINK.new"
+
+  # If a real directory were sitting at the temp name, `ln -s` would create the
+  # link inside it instead of replacing it and the swap would silently do
+  # nothing.
+  if [[ -d $staging ]]; then
+    log "refusing to swap: $staging is a directory"
+    return 1
+  fi
+
+  ln -sfn -- "$dir" "$staging" || {
+    log "could not create $staging"
+    return 1
+  }
+
+  if ! mv -T -- "$staging" "$CURRENT_LINK"; then
+    rm -f -- "$staging"
+    log "could not move $staging into place"
+    return 1
+  fi
+
+  return 0
 }
 
 restart_service() {
@@ -318,8 +476,11 @@ wait_for_health() {
 # Structural smoke test of the rendered homepage, deliberately independent of
 # any marketing copy so a content edit can never fail a deployment.
 smoke_test_homepage() {
+  local release_root="$1"
   local html=""
   local chunk_path=""
+  local image_url=""
+  local candidate=""
 
   html="$(curl -fsS --max-time 10 "$LOCAL_ORIGIN/" 2>/dev/null || true)"
   if [[ -z $html ]]; then
@@ -352,6 +513,34 @@ smoke_test_homepage() {
   if ! curl -fsS -o /dev/null --max-time 10 "$LOCAL_ORIGIN$chunk_path"; then
     log "static asset is not being served: $chunk_path"
     return 1
+  fi
+
+  # next/image writes optimised derivatives into the runtime cache, which is the
+  # only path ProtectSystem=strict hands back to the service account. Requesting
+  # a real optimised image is what proves that carve-out still works, and it
+  # fails here rather than in a visitor's browser if it does not.
+  image_url="$(grep -o '/_next/image?url=[^"<> ]*' <<<"$html" | head -n 1 | sed 's/&amp;/\&/g')"
+
+  if [[ -z $image_url ]]; then
+    # The rendered page carries no optimised image, so fall back to a real file
+    # in the release's public directory and exercise the cache anyway.
+    candidate="$(find "$release_root/public" -maxdepth 3 -type f \
+      \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) \
+      2>/dev/null | grep -E '/[A-Za-z0-9._/-]+$' | head -n 1 || true)"
+
+    if [[ -n $candidate ]]; then
+      candidate="${candidate#"$release_root/public"}"
+      image_url="/_next/image?url=${candidate//\//%2F}&w=64&q=75"
+    fi
+  fi
+
+  if [[ -n $image_url ]]; then
+    if ! curl -fsS -o /dev/null --max-time 15 "$LOCAL_ORIGIN$image_url"; then
+      log "the image optimiser did not return a usable response for $image_url; the runtime cache is probably not writable"
+      return 1
+    fi
+  else
+    log "note: no optimisable image is reachable; skipping the image cache probe"
   fi
 
   log "homepage smoke test passed"
@@ -412,37 +601,65 @@ rollback_to() {
   return 1
 }
 
-# Keeps a bounded history. The active and previous releases are never removed,
-# so a rollback target always exists.
+# Reports a post-swap failure with the outcome of the recovery attempt, as a
+# distinct exit code. `previous` is empty on a first deployment, and on the
+# rollback path it is deliberately empty too: cascading a failed rollback into
+# another rollback would restore the release that was just rejected.
+fail_after_activation() {
+  local sha="$1"
+  local previous="$2"
+  local reason="$3"
+
+  if rollback_to "$previous" "$reason for $sha"; then
+    die 6 "$reason for $sha; the previous release ${previous:-<none>} was restored and is healthy"
+  fi
+
+  if [[ -z $previous ]]; then
+    die 8 "$reason for $sha, and there is no verified release to fall back to; $sha is left in place and production requires manual intervention"
+  fi
+
+  die 7 "$reason for $sha and rolling back to $previous did not restore service; production requires manual intervention"
+}
+
+# Keeps a bounded history. The active release, the recorded rollback target and
+# whatever the symlink currently points at are never removed, so a rollback
+# target always exists even if the state files disagree with the filesystem.
 prune_releases() {
-  local active previous dir name retain index
+  local active previous live dir name
+  local protected
   local -a candidates=()
 
   active="$(read_state active)"
   previous="$(read_state previous)"
+  live="$(current_release_name)"
+  protected=" $active $previous $live "
 
   while IFS= read -r dir; do
-    name="$(basename "$dir")"
-    if [[ $name == "$active" || $name == "$previous" ]]; then
+    name="${dir##*/}"
+    if [[ $protected == *" $name "* ]]; then
       continue
     fi
     candidates+=("$dir")
   done < <(
-    find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -name '[0-9a-f]*' \
+    find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d \
+      -regextype posix-extended -regex '.*/[0-9a-f]{40}' \
       -printf '%T@ %p\n' 2>/dev/null | sort -rn | awk '{print $2}'
   )
 
-  retain=$((KEEP_RELEASES - 2))
+  # At least two entries are always protected, so the two-release allowance
+  # keeps the directory at roughly KEEP_RELEASES entries.
+  local retain=$((KEEP_RELEASES - 2))
   ((retain < 0)) && retain=0
 
+  local index
   for ((index = retain; index < ${#candidates[@]}; index++)); do
     rm -rf -- "${candidates[$index]}"
     log "pruned old release $(basename "${candidates[$index]}")"
   done
 }
 
-# An upload interrupted by a cancelled run leaves a staging directory behind.
-# Siblings from an in-flight upload are younger than the cutoff and are kept.
+# A release left staged by an interrupted run is younger than the cutoff and is
+# kept, so a retry can still promote it.
 prune_stale_uploads() {
   local dir
   while IFS= read -r dir; do
@@ -453,13 +670,15 @@ prune_stale_uploads() {
   )
 }
 
-# `remember_previous` is 0 when this call is itself a rollback. Without it, the
-# release being abandoned would be recorded as the rollback target, so a second
-# rollback would restore the very revision that just failed.
+# `mode` is "deploy" for a normal activation and "rollback" when --rollback is
+# re-activating a known-good release. The difference is load-bearing: on the
+# rollback path the release being replaced is the one that just failed, so it
+# must never be recorded as the next rollback target, and a failure there must
+# not cascade into another rollback attempt.
 activate_release() {
   local sha="$1"
-  local remember_previous="${2:-1}"
-  local target previous_dir previous_sha
+  local mode="${2:-deploy}"
+  local target active_before previous_dir previous_sha fallback
 
   stage_upload "$sha"
   validate_staged "$RELEASES_DIR/.incoming-$sha" "$sha"
@@ -468,8 +687,14 @@ activate_release() {
   target="$(resolve_release "$sha")"
   # Re-checked after promotion: the rollback path activates a release that was
   # never uploaded, so it does not pass through validate_staged.
+  assert_safe_tree "$target" || die 4 "release $sha contains unsafe entries"
   validate_release "$target" || die 4 "release $sha failed content validation"
   assert_release_identity "$target" "$sha" || die 4 "release $sha failed identity validation"
+
+  # Read before anything moves: this is the last release known to have passed a
+  # full activation, and therefore the only release worth recording as a
+  # rollback target.
+  active_before="$(read_state active)"
 
   previous_dir="$(current_target)"
   previous_sha=""
@@ -477,9 +702,21 @@ activate_release() {
     previous_sha="$(basename "$previous_dir")"
   fi
 
-  prepare_release "$target"
+  if [[ $target == "$previous_dir" ]]; then
+    # Re-activating the release that is already live. Re-running the recursive
+    # chown/chmod here would briefly rewrite permissions underneath a running
+    # process, and it would achieve nothing: this tree was already prepared.
+    log "release $sha is already the live release; leaving its permissions untouched"
+  else
+    prepare_release "$target"
+  fi
 
-  log "activating $sha (previous: ${previous_sha:-none})"
+  fallback=""
+  if [[ $mode == deploy ]]; then
+    fallback="$previous_sha"
+  fi
+
+  log "activating $sha (previous: ${previous_sha:-none}, mode: $mode)"
   if ! switch_to "$target"; then
     # The swap is atomic, so a failure here leaves the live release untouched.
     diagnostics
@@ -488,24 +725,27 @@ activate_release() {
 
   if ! restart_service; then
     diagnostics
-    rollback_to "$previous_sha" "the service failed to restart on $sha"
-    return 1
+    fail_after_activation "$sha" "$fallback" "the service failed to restart"
   fi
 
   if ! wait_for_health "$sha"; then
     diagnostics
-    rollback_to "$previous_sha" "the health check failed for $sha"
-    return 1
+    fail_after_activation "$sha" "$fallback" "the health check failed"
   fi
 
-  if ! smoke_test_homepage; then
+  if ! smoke_test_homepage "$target"; then
     diagnostics
-    rollback_to "$previous_sha" "the homepage smoke test failed for $sha"
-    return 1
+    fail_after_activation "$sha" "$fallback" "the homepage smoke test failed"
   fi
 
   write_state active "$sha"
-  if [[ $remember_previous -eq 1 && -n $previous_sha ]]; then
+
+  # Recorded only when the release being replaced is the last one known to have
+  # passed activation. Recording whatever happened to be live would happily
+  # store a half-activated revision as the next rollback target, and recording
+  # the release being activated would point the next rollback at itself.
+  if [[ $mode == deploy && -n $previous_sha && $previous_sha != "$sha" &&
+    $previous_sha == "$active_before" ]]; then
     write_state previous "$previous_sha"
   fi
 
@@ -515,12 +755,53 @@ activate_release() {
   return 0
 }
 
+# Decides which release --rollback should restore. There are three distinct
+# situations and they need different answers:
+#
+#   * a clean state, where `current` is the last release that passed activation
+#     and rolling back means going to the recorded previous release;
+#   * an interrupted activation, where `current` was swapped but success was
+#     never recorded -- `active` is then still the last known-good release, and
+#     restoring it is the repair rather than going back two revisions;
+#   * a failed rollback, where the pointer is already back at the last verified
+#     release but the service did not come up. Nothing older is recorded, so the
+#     only repair left is to re-activate that same release: the symlink is
+#     already right, but restarting and re-verifying it is worth doing.
+#
+# The last case is why this never returns an empty result while a verified
+# release exists. --rollback is an operator's repair command, and "there is
+# nothing to roll back to" is not a useful answer when the answer is "restart
+# and verify what is already there".
+rollback_target() {
+  local active live previous
+  active="$(read_state active)"
+  live="$(current_release_name)"
+
+  if [[ -n $active && $live != "$active" ]]; then
+    log "current is $live but the last verified release is $active; restoring the verified release"
+    printf '%s\n' "$active"
+    return 0
+  fi
+
+  previous="$(read_state previous)"
+  if [[ -n $previous ]]; then
+    printf '%s\n' "$previous"
+    return 0
+  fi
+
+  if [[ -n $active ]]; then
+    log "no older release is recorded; re-activating the verified release $active"
+  fi
+  printf '%s\n' "$active"
+}
+
 main() {
   preflight
+  assert_usage "$@"
 
   # Inspection is served before the lock is taken, so the deployment workflow
   # can still report what is live while another activation is running.
-  if [[ ${1:-} == "--status" ]]; then
+  if [[ $1 == "--status" ]]; then
     print_status
     return 0
   fi
@@ -532,30 +813,29 @@ main() {
     die 5 "another activation is already in progress ($LOCK_FILE)"
   fi
 
-  case "${1:-}" in
-    "")
-      die 2 "usage: ggitech-activate <40-character-git-sha> | --rollback | --status"
-      ;;
+  case "$1" in
     --rollback)
-      # Restores the last release that actually passed activation, which is not
-      # the same thing as the `previous` pointer: that records the release
-      # before the live one, so using it here would roll back two releases.
-      #
-      # This exists for the case where an activation was interrupted after the
-      # symlink moved but before the health check, leaving `current` on an
-      # unverified release.
       local restore_sha
-      restore_sha="$(read_state active)"
+      restore_sha="$(rollback_target)"
+
       if [[ -z $restore_sha ]]; then
-        die 3 "no release has ever been activated on this host; there is nothing to roll back to"
+        die 3 "no verified release is recorded on this host; there is nothing to roll back to"
       fi
-      activate_release "$restore_sha" 0 || die 6 "rollback activation failed"
+
+      log "rolling back to $restore_sha"
+      activate_release "$restore_sha" rollback
       ;;
     -*)
       die 2 "unknown option: $1"
       ;;
     *)
       assert_sha "$1"
+
+      # Housekeeping belongs here rather than on the success path only: a host
+      # whose deployments keep failing would otherwise accumulate staging
+      # directories forever.
+      prune_stale_uploads
+
       activate_release "$1" || die 6 "deployment of $1 failed"
       ;;
   esac
