@@ -1,0 +1,85 @@
+[Unit]
+Description=GGITECH web application (Next.js standalone server)
+Documentation=https://github.com/gospat/GGITECH-WEBSITE
+After=network-online.target
+Wants=network-online.target
+
+# A release that crash-loops must stop and stay failed rather than restart
+# forever: five failures inside two minutes is enough to absorb a transient
+# blip while still surfacing a genuinely broken build.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ggitech
+Group=ggitech
+
+# `current` is a symlink swapped atomically by ggitech-activate, so the unit
+# never needs rewriting between releases. server.js calls process.chdir() to
+# this directory, which is also what the /api/health route reads BUILD_ID from.
+WorkingDirectory=/var/www/ggitech/current
+ExecStart=/usr/bin/node server.js
+
+# Production secrets live outside every release directory, so rolling back to
+# an older release can never resurrect a stale credential set.
+EnvironmentFile=/var/www/ggitech/shared/.env.production
+
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+# server.js honours PORT and HOSTNAME. Binding to the loopback address is what
+# keeps 3213 off the public internet; nginx is the only thing that may reach it.
+Environment=PORT=3213
+Environment=HOSTNAME=127.0.0.1
+# The box is a 1 vCPU / 2 GB instance shared with the university certificate
+# portal and MySQL. Bounding the V8 heap means a leak takes down this service
+# instead of inviting the kernel OOM killer to pick a victim at random.
+Environment=NODE_OPTIONS=--max-old-space-size=768
+
+Restart=on-failure
+RestartSec=3
+
+# Let in-flight requests drain before the process is killed.
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=20
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ggitech
+
+# --- Sandboxing -------------------------------------------------------------
+# The service account has no shell and no privileges; these settings make the
+# consequences of a compromise in the Node process as small as possible.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# ProtectSystem=strict makes the entire filesystem read-only, so anything the
+# process legitimately writes has to be handed back explicitly. next/image
+# writes optimised derivatives into .next/cache on first request, and the
+# incremental cache lives there too; without this carve-out the image
+# optimiser fails and every optimised image request returns 500.
+#
+# The leading "-" means "ignore if absent": during a first-ever activation the
+# directory is created by ggitech-activate, and a missing path without the
+# prefix would make systemd refuse to start the unit at all.
+ReadWritePaths=-/var/www/ggitech/current/.next/cache
+
+[Install]
+WantedBy=multi-user.target

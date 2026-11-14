@@ -1,0 +1,281 @@
+name: Deploy to production
+
+on:
+  # Every push that reaches main is deployed. Pull requests run the CI workflow
+  # only, so nothing here can touch production before a change is merged.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Production deployments are serialised and never cancelled. Interrupting a run
+# between the symlink swap and the health check would leave a release in an
+# unknown state, so a second run queues behind the first instead of racing it.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+# The workflow reads the repository and nothing else; it never pushes a commit,
+# a tag or a package back to GitHub.
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  # The canonical origin is compiled into the build, so it must be set while
+  # `next build` runs rather than supplied at runtime.
+  NEXT_PUBLIC_SITE_URL: https://ggitech.dev
+
+jobs:
+  quality:
+    name: Validate & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Assemble the standalone release
+        run: |
+          set -euo pipefail
+
+          rm -rf artifact
+          mkdir -p artifact
+
+          # `next build` with output: "standalone" writes a self-contained server
+          # to .next/standalone but deliberately omits .next/static and public.
+          # Both have to sit beside server.js, or the site serves valid HTML
+          # whose every stylesheet and script 404s.
+          cp -R .next/standalone/. artifact/
+          cp -R .next/static artifact/.next/static
+          cp -R public artifact/public
+
+          # The activator refuses a release that cannot prove which commit it was
+          # built from, so an artifact can never be activated under the wrong id.
+          printf '%s\n' "$GITHUB_SHA" > artifact/RELEASE_SHA
+
+          for required in server.js package.json .next/BUILD_ID .next/static public RELEASE_SHA; do
+            if [[ ! -e "artifact/$required" ]]; then
+              echo "::error::the assembled release is missing $required"
+              exit 1
+            fi
+          done
+
+      - name: Package the release
+        run: |
+          set -euo pipefail
+          # A tarball rather than a bare directory: it round-trips symlinks and
+          # file modes, including the .bin shims inside node_modules.
+          tar -czf ggitech-release.tar.gz -C artifact .
+
+      - name: Upload the release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ggitech-release
+          path: ggitech-release.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Only high and critical advisories in production dependencies block a
+      # release, so a low-severity transitive advisory cannot stop a deploy.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  deploy:
+    name: Deploy to ggitech.dev
+    needs: [quality, audit]
+    runs-on: ubuntu-latest
+
+    # References a repository environment so that required reviewers, a wait
+    # timer or a branch restriction can be attached in repository settings
+    # without editing this file. With no protection rules configured, the job
+    # proceeds as soon as the validation jobs pass.
+    environment: production
+
+    env:
+      RELEASE_SHA: ${{ github.sha }}
+
+    steps:
+      # Cheap local guards, run before anything is downloaded or transferred.
+      - name: Validate the release id
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::refusing to deploy: '$RELEASE_SHA' is not a 40-character lowercase git SHA"
+            exit 1
+          fi
+
+      - name: Confirm this is the production branch
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::production deployments are only allowed from main (this run is on $GITHUB_REF)"
+            exit 1
+          fi
+
+      - name: Download the release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ggitech-release
+
+      - name: Unpack the release
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          tar -xzf ggitech-release.tar.gz -C release
+          test -f release/server.js
+          test -f release/RELEASE_SHA
+          test -d release/.next/static
+          test -d release/public
+
+      # The host key is pinned from a secret with StrictHostKeyChecking on, so a
+      # machine-in-the-middle cannot present a substitute server. The key itself
+      # is only ever written to a 0600 file and is removed at the end of the job.
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GGITECH_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.GGITECH_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.GGITECH_HOST }}
+          DEPLOY_USER: ${{ secrets.GGITECH_USER }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          {
+            echo "Host ggitech-production"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  User $DEPLOY_USER"
+            echo "  IdentityFile ~/.ssh/id_ed25519"
+            echo "  IdentitiesOnly yes"
+            echo "  BatchMode yes"
+            echo "  StrictHostKeyChecking yes"
+            echo "  UserKnownHostsFile ~/.ssh/known_hosts"
+            echo "  ConnectTimeout 20"
+            echo "  ServerAliveInterval 15"
+          } > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # Informational: recorded so a failure can be traced to the revision that
+      # was live beforehand. Never allowed to fail the deploy on its own.
+      - name: Record the release currently live
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          echo "Release live before this deployment:"
+          ssh ggitech-production 'sudo -n /usr/local/bin/ggitech-activate --status'
+
+      - name: Upload the release to the server
+        run: |
+          set -euo pipefail
+          remote="/home/deploy/uploads/$RELEASE_SHA"
+
+          # A stale directory from an earlier attempt would leave files behind
+          # that rsync never overwrites, so the target is recreated empty.
+          ssh ggitech-production "rm -rf -- '$remote' && mkdir -p -- '$remote'"
+
+          # No --delete, no --owner: the upload directory belongs to deploy, and
+          # the activator re-owns and re-permissions everything after it moves
+          # the artifact into the application tree.
+          rsync -rltz --chmod=D755,F644 -e ssh ./release/ "ggitech-production:$remote/"
+
+      # The activator is the only command deploy may run as root. It validates
+      # the artifact, swaps the symlink atomically, restarts the service, polls
+      # /api/health for this exact SHA and smoke-tests the homepage.
+      - name: Activate the release and verify it
+        id: activate
+        run: |
+          set -euo pipefail
+          ssh ggitech-production "sudo -n /usr/local/bin/ggitech-activate '$RELEASE_SHA'"
+
+      # Runs only when the activator itself reported failure, which means it
+      # already failed the health check and attempted its own rollback. This
+      # step checks the outcome *independently* rather than trusting the exit
+      # code, because a rollback that claims success while the site is broken is
+      # worse than reporting no recovery at all.
+      - name: Roll back the failed release
+        if: failure() && steps.activate.outcome == 'failure'
+        run: |
+          set -uo pipefail
+
+          echo "::error::Activation of $RELEASE_SHA failed; attempting rollback."
+
+          if rollback_output="$(ssh ggitech-production 'sudo -n /usr/local/bin/ggitech-activate --rollback' 2>&1)"; then
+            printf '%s\n' "$rollback_output"
+          else
+            printf '%s\n' "$rollback_output"
+            echo "::error::ROLLBACK FAILED: the activator could not restore the previous release. Production requires manual intervention."
+            exit 1
+          fi
+
+          health="$(ssh ggitech-production 'curl -fsS --max-time 10 http://127.0.0.1:3213/api/health' 2>&1)" || true
+          printf 'post-rollback /api/health -> %s\n' "$health"
+
+          if ! grep -q '"status":"ok"' <<<"$health"; then
+            echo "::error::ROLLBACK FAILED: the restored release is not reporting healthy. Production requires manual intervention."
+            exit 1
+          fi
+
+          echo "ROLLBACK VERIFIED: the previous release is serving again."
+
+      # A partially transferred artifact is never visible to the activator, but
+      # leaving it behind wastes disk on a 1 vCPU / 2 GB host.
+      - name: Discard an incomplete upload
+        if: failure()
+        continue-on-error: true
+        run: ssh ggitech-production "rm -rf -- '/home/deploy/uploads/$RELEASE_SHA'"
+
+      - name: Report the final release state
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "Release state on the server after this run:"
+          ssh ggitech-production 'sudo -n /usr/local/bin/ggitech-activate --status'
+
+      - name: Remove deployment credentials from the runner
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519 ~/.ssh/known_hosts ~/.ssh/config
