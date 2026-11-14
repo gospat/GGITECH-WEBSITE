@@ -23,7 +23,8 @@
 #   1  preflight/environment failure
 #   2  bad usage or malformed release id
 #   3  release missing, or a path that escapes the releases directory
-#   4  release content failed validation
+#   4  the release was found but is not usable: unsafe or invalid content, a
+#      RELEASE_SHA mismatch, or it could not be prepared and owned on disk
 #   5  another activation holds the lock
 #   6  activation failed, but the previous release was restored and is healthy
 #   7  activation failed AND the rollback did not restore service
@@ -196,17 +197,37 @@ print_status() {
 
 # Confirms a release directory is a real directory that is a direct child of the
 # releases directory, and prints its canonical path on success.
+#
+# Returns non-zero rather than exiting. It is called from inside a command
+# substitution, and `exit` there ends only the subshell that substitution forks:
+# a `die 3` would be swallowed, the caller would carry on with an empty target,
+# and the failure would surface later as a content error (exit 4) instead of the
+# documented "the release is missing" (exit 3). The caller turns the failure into
+# the exit code, and this function only reports why.
 resolve_release() {
   local sha="$1"
   local dir="$RELEASES_DIR/$sha"
   local resolved
 
-  [[ ! -L $dir ]] || die 3 "refusing to activate a symlinked release path: $dir"
-  [[ -d $dir ]] || die 3 "release directory does not exist: $dir"
+  [[ ! -L $dir ]] || {
+    log "refusing to activate a symlinked release path: $dir"
+    return 1
+  }
 
-  resolved="$(realpath -e -- "$dir")" || die 3 "cannot resolve $dir"
-  [[ $(dirname "$resolved") == "$RELEASES_DIR" ]] ||
-    die 3 "release path escapes $RELEASES_DIR: $resolved"
+  [[ -d $dir ]] || {
+    log "release directory does not exist: $dir"
+    return 1
+  }
+
+  resolved="$(realpath -e -- "$dir")" || {
+    log "cannot resolve $dir"
+    return 1
+  }
+
+  [[ $(dirname "$resolved") == "$RELEASES_DIR" ]] || {
+    log "release path escapes $RELEASES_DIR: $resolved"
+    return 1
+  }
 
   printf '%s\n' "$resolved"
 }
@@ -286,8 +307,11 @@ stage_upload() {
 
     # Nothing about the upload's metadata is trusted: ownership is forced back
     # to root, so a file placed by the deployment account cannot remain
-    # writable by it once promoted into the application tree.
-    chown -R root:root -- "$incoming"
+    # writable by it once promoted into the application tree. Checked, because
+    # this script is reached through a `||` and that suppresses `set -e` here:
+    # an unchecked failure would promote deploy-writable code into the tree.
+    chown -R root:root -- "$incoming" ||
+      die 4 "could not take ownership of the uploaded artifact for $sha"
 
     log "staged the uploaded artifact for $sha"
     return 0
@@ -325,7 +349,11 @@ promote_incoming() {
       die 3 "refusing to replace $existing: it is the release currently being served"
 
     log "replacing existing release directory for $sha"
-    rm -rf -- "$existing"
+    # A silent failure here would leave the old directory in place, and the
+    # `mv` below would then nest the staged release inside it rather than
+    # replacing it -- promoting something that is not the artifact under test.
+    rm -rf -- "$existing" ||
+      die 3 "could not remove the existing release directory $existing"
   fi
 
   mv -- "$incoming" "$existing" || die 3 "could not promote the staged upload"
@@ -399,23 +427,53 @@ validate_staged() {
 # Release code is root-owned and carries no write bit for group or other, so the
 # service can read the code it executes but cannot modify it. The single
 # exception is the runtime cache directory.
+#
+# Returns non-zero rather than exiting, so the caller can decide the exit code.
+# Every step is checked, and not only for tidiness: `activate_release` is reached
+# through `activate_release "$1" || die 6 …` in main(), and a function invoked in
+# a `||` list runs with `set -e` suppressed. An unchecked `mkdir`, `chown` or
+# `chmod` here would therefore fail silently and the release would be promoted to
+# live still owned by the deployment account, or without a writable runtime
+# cache. Failing here fails before the symlink moves, so the live release is
+# never replaced by one that could not be prepared.
 prepare_release() {
   local dir="$1"
   local cache="$dir/$RUNTIME_CACHE_DIR"
 
-  mkdir -p -- "$cache"
+  if ! mkdir -p -- "$cache"; then
+    log "could not create the runtime cache directory: $cache"
+    return 1
+  fi
 
   # `X` grants execute only on directories and on files that already had an
   # execute bit, so the shape of the tree is preserved rather than every file
   # being made executable.
-  chown -R root:root -- "$dir"
-  chmod -R u=rwX,go=rX -- "$dir"
+  if ! chown -R root:root -- "$dir"; then
+    log "could not take ownership of the release tree: $dir"
+    return 1
+  fi
+
+  if ! chmod -R u=rwX,go=rX -- "$dir"; then
+    log "could not normalise the permissions on the release tree: $dir"
+    return 1
+  fi
 
   # Handed back to the service account after the recursive chmod above, because
   # that chmod would otherwise leave it root-owned and read-only and every
-  # optimised image request would fail with a 500.
-  chown -- "$APP_USER:$APP_GROUP" "$cache"
-  chmod 0750 -- "$cache"
+  # optimised image request would fail with a 500. This is the step that needs
+  # the service account to exist on the host, so it is also the step that says so
+  # when it does not.
+  if ! chown -- "$APP_USER:$APP_GROUP" "$cache"; then
+    log "could not hand $cache to $APP_USER:$APP_GROUP; does that account exist on this host?"
+    return 1
+  fi
+
+  if ! chmod 0750 -- "$cache"; then
+    log "could not set the runtime cache mode on $cache"
+    return 1
+  fi
+
+  return 0
 }
 
 # Replacing the symlink with rename(2) means the link never has a moment where
@@ -684,7 +742,12 @@ activate_release() {
   validate_staged "$RELEASES_DIR/.incoming-$sha" "$sha"
   promote_incoming "$sha"
 
-  target="$(resolve_release "$sha")"
+  # Handled here and not inside the substitution: `exit` in a command
+  # substitution ends only that subshell, so the previous form carried on with an
+  # empty `target` and reported a content failure where the documented answer is
+  # "the release is not there". `resolve_release` logs the specific reason.
+  target="$(resolve_release "$sha")" ||
+    die 3 "release $sha is not available for activation; see the log above"
   # Re-checked after promotion: the rollback path activates a release that was
   # never uploaded, so it does not pass through validate_staged.
   assert_safe_tree "$target" || die 4 "release $sha contains unsafe entries"
@@ -708,7 +771,12 @@ activate_release() {
     # process, and it would achieve nothing: this tree was already prepared.
     log "release $sha is already the live release; leaving its permissions untouched"
   else
-    prepare_release "$target"
+    # Nothing has moved yet, so a release that cannot be prepared is refused
+    # here and the live release keeps serving it. There is nothing to roll back
+    # to at this point, which is why this exits rather than calling
+    # fail_after_activation.
+    prepare_release "$target" ||
+      die 4 "release $sha could not be prepared for activation; the live release is untouched"
   fi
 
   fallback=""

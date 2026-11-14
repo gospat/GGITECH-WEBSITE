@@ -19,9 +19,11 @@
 #     unshare --mount
 #
 # and bind-mounts temporary directories over those paths, and stub executables
-# over /usr/bin/systemctl, /usr/bin/journalctl and /usr/bin/curl. The real
-# filesystem is never written to, the real paths are never reached, and the
-# stubs are unmounted when the suite exits.
+# over /usr/bin/systemctl, /usr/bin/journalctl and /usr/bin/curl. It also
+# bind-mounts private copies of the NSS databases so that the `ggitech` service
+# account the script chowns to resolves, without an account ever being created on
+# the host. The real filesystem is never written to, the real paths are never
+# reached, and every mount is removed when the suite exits.
 #
 # Requirements
 # ------------
@@ -116,6 +118,7 @@ readonly TMP="${GGITECH_TEST_TMP:?the sandbox path was not propagated}"
 readonly FS="$TMP/fs"
 readonly STUBS="$TMP/stubs"
 readonly STATE="$TMP/stub-state"
+readonly IDENTITY="$TMP/identity"
 readonly ACTIVATOR_OUT="$TMP/activator.out"
 readonly ACTIVATOR_ERR="$TMP/activator.err"
 
@@ -300,6 +303,66 @@ STUB
   chmod 0755 "$STUBS/systemctl" "$STUBS/journalctl" "$STUBS/curl"
 }
 
+# --------------------------------------------------------------------------
+# The service identity
+# --------------------------------------------------------------------------
+# ggitech-activate hands the runtime cache to a hard-coded `ggitech:ggitech`, so
+# that name has to resolve inside the sandbox or every activation dies at the
+# first `chown` with "invalid user" -- an environment the real host never has,
+# which makes the suite fail for a reason that has nothing to do with the script.
+#
+# Creating a real account is not an option: this suite must be safe to run on a
+# machine whose accounts matter. Instead the identity is supplied by private
+# copies of the NSS databases, bind-mounted over /etc/passwd, /etc/group and
+# /etc/nsswitch.conf. The mounts live only in this suite's private mount
+# namespace, so the host's accounts are not created, modified or deleted, and
+# nothing outside the namespace can observe the fixture.
+
+# The lowest free id at or above `preferred`. Reusing an id already present in
+# the copy would make `stat -c %U` report the *other* name for it, and the
+# ownership assertions would then be checking the wrong thing.
+pick_free_id() {
+  local file="$1"
+  local preferred="$2"
+
+  awk -F: -v preferred="$preferred" '
+    $3 ~ /^[0-9]+$/ && $3 > highest { highest = $3 }
+    $3 == preferred { taken = 1 }
+    END { if (taken) print highest + 1; else print preferred }
+  ' "$file"
+}
+
+write_identities() {
+  mkdir -p -- "$IDENTITY"
+
+  cp -- /etc/passwd "$IDENTITY/passwd"
+  cp -- /etc/group "$IDENTITY/group"
+
+  local uid gid
+  uid="$(pick_free_id "$IDENTITY/passwd" 3213)"
+  gid="$(pick_free_id "$IDENTITY/group" 3213)"
+
+  printf '%s\n' \
+    "ggitech:x:$uid:$gid:GGITECH service account (test fixture):$APP_DIR:/usr/sbin/nologin" \
+    >>"$IDENTITY/passwd"
+  printf '%s\n' "ggitech:x:$gid:ggitech" >>"$IDENTITY/group"
+
+  # Resolution is pinned to the flat files. A host whose nsswitch consults a
+  # network directory for passwd or group would otherwise resolve `ggitech`
+  # somewhere else, or not at all.
+  if [[ -f /etc/nsswitch.conf ]]; then
+    awk '
+      /^passwd:/ { print "passwd: files"; next }
+      /^group:/ { print "group:  files"; next }
+      { print }
+    ' /etc/nsswitch.conf >"$IDENTITY/nsswitch.conf"
+  else
+    printf 'passwd: files\ngroup: files\n' >"$IDENTITY/nsswitch.conf"
+  fi
+
+  chmod 0644 "$IDENTITY/passwd" "$IDENTITY/group" "$IDENTITY/nsswitch.conf"
+}
+
 setup_sandbox() {
   mkdir -p -- \
     "$FS/app/releases" "$FS/app/state" "$FS/app/shared" \
@@ -310,10 +373,16 @@ setup_sandbox() {
   chmod 0640 "$FS/app/shared/.env.production"
 
   write_stubs
+  write_identities
 
   bind_mount "$FS/app" "$APP_DIR"
   bind_mount "$FS/uploads" "$UPLOAD_DIR"
   bind_mount "$FS/log" "$LOG_DIR"
+
+  # The service account the activator chowns to, supplied by the fixture above.
+  bind_mount "$IDENTITY/passwd" /etc/passwd
+  bind_mount "$IDENTITY/group" /etc/group
+  bind_mount "$IDENTITY/nsswitch.conf" /etc/nsswitch.conf
 
   # The lock file is mounted individually so the real /run is left alone.
   if [[ ! -e $LOCK_FILE ]]; then
@@ -814,11 +883,51 @@ scenario_10_concurrency() {
   expect_rc 0 "the same activation succeeds once the lock is released"
 }
 
+scenario_11_preparation_failure() {
+  scenario "11. A release that cannot be prepared is refused before the swap"
+  reset_environment
+
+  # Root ignores permission bits, so a mode change cannot be made to fail as
+  # root. A regular file where the runtime cache directory has to go can: `mkdir
+  # -p` refuses to replace it, which is the same code path as a full disk or a
+  # service account that is missing. Everything before preparation still passes,
+  # so this is specifically the preparation failure.
+  stage_upload "$SHA_A"
+  printf 'not a directory\n' >"$UPLOAD_DIR/$SHA_A/.next/cache"
+  printf '%s\n' "$SHA_A" >"$STATE/health-sha"
+
+  run_activator "$SHA_A"
+  expect_rc 4 "a first release that cannot be prepared is refused"
+  assert_current_absent "the un-preparable release is never pointed at"
+  assert_state_empty active "no release is recorded as verified"
+  assert_log_contains 'could not create the runtime cache directory' \
+    "the failing step is named in the log"
+
+  # The same failure during an upgrade: nothing has been swapped at this point,
+  # so the live release must keep serving and no rollback is attempted.
+  reset_environment
+  stage_upload "$SHA_A"
+  printf '%s\n' "$SHA_A" >"$STATE/health-sha"
+  run_activator "$SHA_A"
+  expect_rc 0 "a good release activates"
+
+  stage_upload "$SHA_B"
+  printf 'not a directory\n' >"$UPLOAD_DIR/$SHA_B/.next/cache"
+  run_activator "$SHA_B"
+  expect_rc 4 "an upgrade that cannot be prepared is refused"
+  assert_current_is "$SHA_A" "current still points at the live release"
+  assert_state active "$SHA_A" "the live release is still the verified release"
+  assert_state_empty previous "the refused upgrade records no rollback target"
+
+  run_activator --status
+  expect_rc 0 "--status still answers after a refused preparation"
+  assert_stdout_contains '^verified=yes$' "the live site is still reported as verified"
+}
+
 # --------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------
 setup_sandbox
-
 printf 'ggitech-activate integration tests\n'
 printf 'activator : %s\n' "$ACTIVATOR"
 printf 'sandbox   : %s\n' "$TMP"
@@ -833,6 +942,7 @@ scenario_7_repeated_activation
 scenario_8_manual_rollback
 scenario_9_malformed_artifacts
 scenario_10_concurrency
+scenario_11_preparation_failure
 
 printf '\n----------------------------------------\n'
 printf 'passed: %d\n' "$PASSED"

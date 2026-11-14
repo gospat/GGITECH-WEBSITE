@@ -1,0 +1,61 @@
+name: Scratch activation tests
+
+# Temporary. This workflow exists only to execute deploy/tests/run-activation-tests.sh
+# in a disposable, isolated Ubuntu environment instead of on any real host, and it is
+# scrubbed again once the results have been captured. It is never part of
+# ci/production-deploy-pipeline.
+#
+# This workflow cannot deploy anything: it does not reference AWS, SSH keys, the
+# `production` environment or the deployment secrets. It cannot and must not reach
+# the live server. The only thing it runs is the test suite.
+
+on:
+  push:
+    branches: [ci/activation-tests-run]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scratch-activation-tests
+  cancel-in-progress: false
+
+jobs:
+  activation-tests:
+    name: ggitech-activate integration tests
+    # Pinned to the production OS, not ubuntu-latest, so a pass means the state
+    # machine works on the host class this is actually deployed to.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show the execution environment
+        run: |
+          set -ux
+          uname -a
+          cat /etc/os-release
+          command -v unshare flock timeout stat realpath awk find
+          git ls-files -s deploy/tests/run-activation-tests.sh deploy/bin/ggitech-activate
+          id
+          echo "--- does the service account exist on this host before the run? ---"
+          getent passwd ggitech || echo "no ggitech account (expected: the fixture supplies it in a private namespace)"
+
+      - name: Run the activation integration tests
+        run: sudo deploy/tests/run-activation-tests.sh
+
+      - name: Confirm the host was left clean
+        if: always()
+        run: |
+          set -ux
+          echo "--- no account may have been created on this host ---"
+          getent passwd ggitech || echo "no ggitech account was created (expected)"
+          getent group ggitech || echo "no ggitech group was created (expected)"
+          echo "--- no application tree or bind mounts may be left behind ---"
+          ls -ld /var/www/ggitech 2>&1 || echo "no /var/www/ggitech -- clean"
+          mount | grep -E 'ggitech|/etc/(passwd|group|nsswitch)' || echo "no leftover bind mounts"
+          echo "--- the runner's real identity databases must be untouched ---"
+          grep -c 'ggitech' /etc/passwd || echo "0 ggitech entries in /etc/passwd (expected)"
