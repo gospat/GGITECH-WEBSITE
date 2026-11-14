@@ -76,6 +76,7 @@ The rules that follow from that:
 | `deploy/systemd/ggitech.service` | The application service |
 | `deploy/nginx/ggitech.conf` | Reverse proxy for the canonical host `ggitech.dev`, plus the permanent redirects onto it |
 | `deploy/tests/run-activation-tests.sh` | Linux-only integration tests for the activation and rollback state machine |
+| `deploy/tests/run-nginx-validation.sh` | Linux-only validation of the vhost against a real nginx: canonical redirects, proxy headers, ACME and the fallback |
 
 ---
 
@@ -730,7 +731,7 @@ A `200` alone is not treated as success. Activation requires **all** of:
 | exit `1`, "is missing or is a symlink" | A base directory is absent or was replaced by a link | Re-run step 1; check with `ls -ld /var/www/ggitech /var/www/ggitech/releases` |
 | Two GGITECH vhosts enabled | A second `ggitech.conf` was added | Re-run step 9; it removes the duplicate after confirming it is a GGITECH vhost |
 | The public site returns 502/503 straight after installation | Step 9 ran before step 8, so the vhost proxies to a port with nothing on it | The application has not been deployed yet — complete step 8. To restore the old site meanwhile, put `$SITE.bak.<ts>` back and reload nginx |
-| Site returns 503 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
+| Site returns 502 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
 | `sudo: a password is required` | NOPASSWD rule missing or wrong | Reinstall step 4; the workflow always calls `sudo -n` |
 | `/api/health` returns 503 `"status":"degraded"` | `.next/BUILD_ID` unreadable | The release tree is not readable by `ggitech`; `prepare_release` should have fixed it |
 | Nothing on 3213 | Service down or bound elsewhere | `ss -lntp \| grep 3213` — must be `127.0.0.1:3213`, never `0.0.0.0` |
@@ -771,7 +772,9 @@ The deployment payload is checked locally with:
 ```bash
 bash -n deploy/bin/ggitech-activate
 bash -n deploy/tests/run-activation-tests.sh
-shellcheck -S style deploy/bin/ggitech-activate deploy/tests/run-activation-tests.sh
+bash -n deploy/tests/run-nginx-validation.sh
+shellcheck -S style deploy/bin/ggitech-activate \
+  deploy/tests/run-activation-tests.sh deploy/tests/run-nginx-validation.sh
 ```
 
 ### The activation integration tests
@@ -863,10 +866,72 @@ passing run above:
 - that `next/image` can write to `.next/cache` under the real
   `ProtectSystem=strict` sandbox — the tests check the permissions, not the
   kernel's response to them;
-- anything about nginx: TLS, the ACME webroot, the 503 fallback, or that the
-  Bells portal on 3100 still works;
+- anything about nginx, because this suite never loads the vhost. The redirect,
+  ACME and fallback behaviour is covered by the vhost validation below, but on a
+  throwaway nginx rather than the production host — so the real certificate, the
+  real Bells portal on 3100 and the live TLS configuration remain unproven here;
 - that the certificate renews (only `certbot renew --dry-run` on the host
   proves that).
+
+### The vhost validation
+
+`deploy/tests/run-nginx-validation.sh` answers the question the activation tests
+cannot: *does `deploy/nginx/ggitech.conf` actually behave the way the runbook
+says it does?* It runs a real nginx, with the vhost installed **unmodified**, and
+drives it with `curl`.
+
+Keeping the artefact unmodified is the whole design. The file hard-codes
+`/var/www/ggitech-acme`, `/etc/letsencrypt/live/ggitech.dev` and
+`/var/log/nginx/ggitech*.log`, so rather than rewrite those paths — which would
+mean testing a file that is not the one that ships — the suite stands them up for
+real on a disposable host: a self-signed certificate carrying both
+`DNS:ggitech.dev` and `DNS:www.ggitech.dev`, an ACME token under the webroot, and
+a throwaway upstream on `127.0.0.1:3213` that records the request headers it
+receives. The only claim made about the file itself is that the installed copy is
+byte-identical to the one in the repository.
+
+```bash
+# On a scratch Linux VM or container, as root. Needs nginx, openssl, curl and
+# python3. This is not the activation suite; it never touches /var/www/ggitech.
+sudo deploy/tests/run-nginx-validation.sh
+```
+
+**What it asserts:** that the installed copy is byte-identical; that `nginx -t`
+passes and warns about nothing; that no directive in the file names the Bells
+portal or port 3100; that `http://ggitech.dev/...`, `http://www.ggitech.dev/...`
+and `https://www.ggitech.dev/...` each answer `301` to
+`https://ggitech.dev/services?utm_source=x&utm_medium=email` — path *and* query
+string preserved, and the www target not itself naming www, which is what would
+make the redirect loop; that the apex answers `200` with no redirect and is
+proxied to the upstream, carrying `host=ggitech.dev`, `xfp=https` and a
+`127.0.0.1` client address; that the ACME challenge returns the token for both
+names; and that a refused upstream is answered by the fallback with
+`Retry-After`, and not by the stock nginx error document.
+
+#### Execution status
+
+Executed in a disposable `ubuntu-24.04` GitHub Actions runner
+(nginx/1.24.0). It has **never been run on the DigitalOcean host**, and the
+production nginx configuration was not read or written by it.
+
+The first run passed 23 assertions and failed 4. All four were defects in the
+test, not in the vhost, and the vhost was left unchanged:
+
+| Failure | Cause | Correction |
+| --- | --- | --- |
+| The ACME token was compared as `acme-token-ok\n` | The fixture wrote the token through `printf '%s\n'`; nginx serves the file byte for byte | The fixture writes it with `printf '%s'`, with no trailing newline |
+| Two assertions expected `503` for a refused upstream, and one missed `Retry-After: 3` | The fallback really does answer `502`, and HTTP/2 lower-cases response header names | The test now asserts `502` and folds the header dump before matching; the two runbook claims that had said `503` were corrected to describe what nginx does |
+
+The corrected suite then reported **28 assertions passed, 0 failed** — and the
+run ends by re-asserting `git diff --exit-code -- deploy/nginx/ggitech.conf`, so
+a passing run also proves the vhost was not edited to make itself pass.
+
+The status is `502` because `error_page 502 @unavailable;` — without the `=` form
+— redirects the response *body* to the named location but keeps the code nginx
+raised. Only `error_page 502 = @unavailable;` would let the location's own `503`
+reach the client. The shipped configuration was deliberately **not** changed to
+add the `=`, because the repository is meant to mirror production, not to
+redefine it.
 
 ### First-deployment test plan
 
@@ -960,8 +1025,13 @@ After each step, confirm the Bells portal is still answering on 3100 and that
 process before starting the new one, so there is a sub-second window in which
 nothing is listening on `127.0.0.1:3213`. During it:
 
-- nginx replaces its own unbranded `502` with a short `503` carrying
-  `Retry-After: 3`;
+- nginx replaces its own unbranded error document with a short, honest message
+  and `Retry-After: 3`. The status stays `502`, which is what nginx raised for a
+  refused upstream: `error_page 502 @unavailable;` redirects the body to the
+  named location but keeps the original code, and only the `=` form
+  (`error_page 502 = @unavailable;`) would let the location's own `503` reach
+  the client. Verified against nginx 1.24 by
+  `deploy/tests/run-nginx-validation.sh`;
 - a request already in flight through an established connection can still fail;
 - the health check and smoke test then run against the new release, which is
   what decides whether the deploy is kept.
