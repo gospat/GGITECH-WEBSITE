@@ -106,7 +106,7 @@ export function createMetadata({
       locale: site.locale,
       type,
       ...(publishedTime ? { publishedTime } : {}),
-      images: [{ url: absoluteUrl(ogImage), width: 1200, height: 900, alt: title }],
+      images: [{ url: absoluteUrl(ogImage), width: 1920, height: 1080, alt: title }],
     },
     twitter: {
       card: "summary_large_image",

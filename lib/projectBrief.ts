@@ -1,4 +1,4 @@
-import { asString, clampText, isEmail, isRecord } from "@/lib/validation";
+import { asString, clampText, isEmail, isRecord, isSafeHeaderValue } from "@/lib/validation";
 
 export type YesNo = "yes" | "no";
 
@@ -130,6 +130,13 @@ export function validateProjectBrief(payload: unknown): ValidationResult {
 
   if (!business.businessName) errors.push("Business name is required.");
   if (!business.businessDescription) errors.push("Business description is required.");
+
+  // businessName is interpolated into the notification email's subject line, so
+  // it gets the same CRLF guard the contact endpoint applies to its own header
+  // fields. clientName shares the rule for consistency.
+  if (!isSafeHeaderValue(business.businessName) || !isSafeHeaderValue(contact.clientName)) {
+    errors.push("Name fields must not contain line breaks.");
+  }
 
   const goals: ProjectBriefGoals = {
     mainPurpose: clampText(asString(goalsRaw.mainPurpose), 240),

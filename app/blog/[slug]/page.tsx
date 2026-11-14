@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import Illustration from "@/components/Illustration";
-import { createMetadata } from "@/lib/site";
+import { absoluteUrl, createMetadata, site } from "@/lib/site";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -41,8 +41,34 @@ export default async function BlogPostPage({ params }: Props) {
   const post = getBlogPostBySlug(slug);
   if (!post) notFound();
 
+  // Rich-result markup. The root layout only emits Organization and WebSite
+  // schema, so without this the article's date, author and subject are invisible
+  // to search engines even though the page already displays them.
+  const published = new Date(post.date);
+  const postJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt,
+    image: absoluteUrl(post.coverImageSrc),
+    author: { "@type": "Organization", name: post.author },
+    publisher: {
+      "@type": "Organization",
+      name: site.name,
+      logo: { "@type": "ImageObject", url: absoluteUrl("/brand/icon-512.png") },
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(`/blog/${post.slug}`) },
+    articleSection: post.category,
+    inLanguage: "en",
+    ...(Number.isNaN(published.getTime()) ? {} : { datePublished: published.toISOString() }),
+  };
+
   return (
     <main id="main" className="min-h-screen bg-background text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(postJsonLd) }}
+      />
       <Navbar />
 
       <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">

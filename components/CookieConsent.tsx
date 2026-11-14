@@ -4,13 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 
-type CookieCategory = "essential" | "preferences" | "analytics" | "advertising";
+type CookieCategory = "essential" | "preferences";
 
 interface CookiePreferences {
   essential: boolean;
   preferences: boolean;
-  analytics: boolean;
-  advertising: boolean;
 }
 
 export default function CookieConsent() {
@@ -20,8 +18,6 @@ export default function CookieConsent() {
   const [preferences, setPreferences] = useState<CookiePreferences>({
     essential: true,
     preferences: false,
-    analytics: false,
-    advertising: false,
   });
 
   useEffect(() => {
@@ -84,21 +80,17 @@ export default function CookieConsent() {
   }, [isOpen]);
 
   const handleAcceptAll = () => {
-    const allEnabled = {
+    const allEnabled: CookiePreferences = {
       essential: true,
       preferences: true,
-      analytics: true,
-      advertising: true,
     };
     savePreferences(allEnabled);
   };
 
   const handleRejectAll = () => {
-    const allDisabled = {
+    const allDisabled: CookiePreferences = {
       essential: true,
       preferences: false,
-      analytics: false,
-      advertising: false,
     };
     savePreferences(allDisabled);
   };
@@ -154,9 +146,9 @@ export default function CookieConsent() {
                     Choose your cookies
                   </h2>
                   <p className="text-gray-400 mb-8 leading-relaxed">
-                    To provide the best experiences, we use technologies like cookies to store
-                    and/or access device information. Consenting to these technologies will allow us
-                    to process data such as browsing behavior on this site.
+                    This site stores your cookie choice in your browser. It does not currently set
+                    analytics or advertising cookies — the only storage we use is what is needed to
+                    run the site and remember your settings.
                   </p>
 
                   <div className="flex flex-col gap-3">
@@ -205,8 +197,8 @@ export default function CookieConsent() {
 
                   <div className="p-6 overflow-y-auto flex-1 space-y-6">
                     <p className="text-gray-400 text-sm">
-                      Cookies help us to enhance your experience, tailor ads to your interests, and
-                      improve our website.
+                      Essential storage keeps the site working. Preference storage remembers your
+                      settings between visits.
                     </p>
 
                     {/* Toggles */}
@@ -224,18 +216,6 @@ export default function CookieConsent() {
                         description="Enable the website to provide enhanced functionality and personalization."
                         checked={preferences.preferences}
                         onChange={() => togglePreference("preferences")}
-                      />
-                      <CookieToggle
-                        label="Analytics cookies"
-                        description="Help us understand how visitors interact with the website."
-                        checked={preferences.analytics}
-                        onChange={() => togglePreference("analytics")}
-                      />
-                      <CookieToggle
-                        label="Advertising cookies"
-                        description="Used to deliver relevant ads and track ad campaign performance."
-                        checked={preferences.advertising}
-                        onChange={() => togglePreference("advertising")}
                       />
                     </div>
                   </div>

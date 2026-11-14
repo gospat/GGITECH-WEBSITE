@@ -26,7 +26,10 @@ export default function GlobalError({
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body className="bg-background font-sans text-text antialiased">
         <title>Something went wrong | GGI Tech</title>
-        <main className="flex min-h-screen flex-col items-center justify-center px-4 text-center sm:px-6">
+        <main
+          id="main"
+          className="flex min-h-screen flex-col items-center justify-center px-4 text-center sm:px-6"
+        >
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             Application error
           </p>

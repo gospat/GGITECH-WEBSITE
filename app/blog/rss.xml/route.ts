@@ -25,6 +25,7 @@ export function GET() {
         `      <guid isPermaLink="true">${url}</guid>`,
         `      <description>${escapeXml(post.excerpt)}</description>`,
         `      <category>${escapeXml(post.category)}</category>`,
+        `      <dc:creator>${escapeXml(post.author)}</dc:creator>`,
         Number.isNaN(published.getTime())
           ? ""
           : `      <pubDate>${published.toUTCString()}</pubDate>`,
@@ -36,7 +37,7 @@ export function GET() {
     .join("\n");
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>${escapeXml(`${site.name} Insights`)}</title>
     <link>${absoluteUrl("/blog")}</link>

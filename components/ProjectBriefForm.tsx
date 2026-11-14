@@ -83,7 +83,7 @@ const NEXT_STEPS = [
 ];
 
 const inputBase =
-  "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-600 focus:outline-none focus:border-primary transition-colors";
+  "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-gray-600 focus:border-primary transition-colors";
 const labelBase = "block text-sm font-medium text-gray-300 mb-2";
 const optionalTag = "ml-2 font-normal text-gray-500";
 const errorText = "mt-2 text-xs text-red-300";
@@ -333,6 +333,12 @@ export default function ProjectBriefForm() {
     headingRef.current?.focus();
   }, [step]);
 
+  // The success view replaces the whole form, so without this a screen-reader
+  // user is left on a submit button that no longer exists in the DOM.
+  useEffect(() => {
+    if (isSuccess) headingRef.current?.focus();
+  }, [isSuccess]);
+
   const referenceWebsites = useMemo(
     () =>
       form.referenceWebsitesText
@@ -518,7 +524,13 @@ export default function ProjectBriefForm() {
             <Check className="relative h-10 w-10 text-green-400" aria-hidden="true" />
           </motion.div>
 
-          <h2 className="text-2xl font-bold text-white mb-2">Brief Submitted</h2>
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-2xl font-bold text-white mb-2 focus:outline-none"
+          >
+            Brief Submitted
+          </h2>
           <p className="text-gray-400 max-w-xl">
             Thank you. A confirmation has been sent to your email, and our team has received your
             project brief.

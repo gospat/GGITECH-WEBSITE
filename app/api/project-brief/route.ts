@@ -66,50 +66,59 @@ export async function POST(req: NextRequest) {
   });
 
   const transporter = getTransporter();
-
   const internalSubject = `New Website Project Brief — ${submission.business.businessName}`;
 
-  await transporter.sendMail({
-    from: env.fromEmail,
-    to: env.officialBriefEmail,
-    replyTo: submission.contact.email,
-    subject: internalSubject,
-    text: [
-      "A new website project brief has been submitted.",
-      "",
-      `Client: ${submission.contact.clientName}`,
-      `Email: ${submission.contact.email}`,
-      `Phone: ${submission.contact.phone || "-"}`,
-      "",
-      "The PDF summary is attached.",
-    ].join("\n"),
-    attachments: [
-      {
-        filename: `project-brief-${submission.business.businessName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${submittedAtISO.slice(
-          0,
-          10
-        )}.pdf`,
-        content: Buffer.from(pdfBytes),
-        contentType: "application/pdf",
-      },
-    ],
-  });
+  // An SMTP failure must not surface as an unhandled 500 — the client gets a
+  // sanitised message and the real error stays in the server log.
+  try {
+    await transporter.sendMail({
+      from: env.fromEmail,
+      to: env.officialBriefEmail,
+      replyTo: submission.contact.email,
+      subject: internalSubject,
+      text: [
+        "A new website project brief has been submitted.",
+        "",
+        `Client: ${submission.contact.clientName}`,
+        `Email: ${submission.contact.email}`,
+        `Phone: ${submission.contact.phone || "-"}`,
+        "",
+        "The PDF summary is attached.",
+      ].join("\n"),
+      attachments: [
+        {
+          filename: `project-brief-${submission.business.businessName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${submittedAtISO.slice(
+            0,
+            10
+          )}.pdf`,
+          content: Buffer.from(pdfBytes),
+          contentType: "application/pdf",
+        },
+      ],
+    });
 
-  await transporter.sendMail({
-    from: env.fromEmail,
-    to: submission.contact.email,
-    subject: "We received your project brief — GGI Tech",
-    text: [
-      `Dear ${submission.contact.clientName || "Client"},`,
-      "",
-      "Thank you for submitting your website project brief. Your message has been delivered successfully.",
-      "",
-      "Our team will review your requirements and reach out using your preferred contact method.",
-      "",
-      `${site.name} — A Division of ${site.legalName}`,
-      site.email,
-    ].join("\n"),
-  });
+    await transporter.sendMail({
+      from: env.fromEmail,
+      to: submission.contact.email,
+      subject: "We received your project brief — GGI Tech",
+      text: [
+        `Dear ${submission.contact.clientName || "Client"},`,
+        "",
+        "Thank you for submitting your website project brief. Your message has been delivered successfully.",
+        "",
+        "Our team will review your requirements and reach out using your preferred contact method.",
+        "",
+        `${site.name} — A Division of ${site.legalName}`,
+        site.email,
+      ].join("\n"),
+    });
+  } catch (error) {
+    console.error("project-brief: failed to send mail", error);
+    return NextResponse.json(
+      { ok: false, error: "We could not send your brief. Please try again shortly." },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

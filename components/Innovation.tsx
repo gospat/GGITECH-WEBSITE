@@ -95,7 +95,7 @@ export default function Innovation() {
             <div className="flex items-start space-x-4">
               <div className="h-12 w-1 bg-primary rounded-full shrink-0" aria-hidden="true" />
               <div>
-                <p className="text-white font-bold text-lg">Key Innovation Areas</p>
+                <h3 className="text-lg font-bold text-white">Key Innovation Areas</h3>
                 <p className="text-gray-500">
                   Institutional platforms, payment infrastructure, health technology, blockchain
                   infrastructure, and cloud-based systems.

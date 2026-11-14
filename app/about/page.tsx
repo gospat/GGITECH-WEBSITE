@@ -101,9 +101,9 @@ export default function AboutPage() {
             <Rocket className="w-12 h-12 text-purple-400 mb-6" aria-hidden="true" />
             <h2 className="text-2xl font-bold mb-4">Our Vision</h2>
             <p className="text-gray-400 leading-relaxed">
-              To become a trusted builder of advanced digital infrastructure and intelligent
-              systems—delivering world-class engineering that supports institutions, businesses, and
-              emerging technologies across Africa and beyond.
+              To become a trusted builder of advanced digital infrastructure and intelligent systems
+              — engineering that supports institutions, businesses, and emerging technologies across
+              Africa and beyond.
             </p>
           </div>
         </div>
