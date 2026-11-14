@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       "",
       "Our team will review your requirements and reach out using your preferred contact method.",
       "",
-      "GGI Tech — A Division of GOSPAT GLOBAL INNOVATIONS LTD",
+      `${site.name} — A Division of ${site.legalName}`,
       site.email,
     ].join("\n"),
   });

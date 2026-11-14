@@ -31,14 +31,14 @@ export default function NotFound() {
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/"
-            className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-8 py-3 text-base font-medium text-white transition-all duration-300 hover:bg-blue-600 sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-blue-600 sm:w-auto"
           >
             <Home className="mr-2 h-4 w-4" aria-hidden="true" />
             Back to home
           </Link>
           <Link
             href="/project-brief"
-            className="inline-flex w-full items-center justify-center rounded-lg border border-white/15 px-8 py-3 text-base font-medium text-gray-200 transition-colors duration-300 hover:border-white/30 hover:text-white sm:w-auto"
+            className="inline-flex w-full items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-gray-200 transition-colors duration-300 hover:border-white/40 hover:text-white sm:w-auto"
           >
             <Send className="mr-2 h-4 w-4" aria-hidden="true" />
             Start a project

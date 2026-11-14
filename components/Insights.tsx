@@ -10,6 +10,10 @@ import Illustration from "@/components/Illustration";
 export default function Insights() {
   const shouldReduceMotion = useReducedMotion();
 
+  // Nothing published yet: drop the section entirely rather than showing an
+  // empty grid under a heading that promises content.
+  if (blogPostsMeta.length === 0) return null;
+
   return (
     <section id="insights" className="py-24 bg-background relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

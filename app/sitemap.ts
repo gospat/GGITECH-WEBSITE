@@ -45,7 +45,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [...staticEntries, ...capabilityEntries, ...blogEntries].map((entry) => ({
     url: absoluteUrl(entry.path),
-    lastModified: entry.lastModified ?? new Date(),
+    // Only emit lastModified where a real date is known (blog posts). Stamping
+    // every build's date onto static pages makes the value meaningless to
+    // crawlers, so those entries omit it.
+    ...(entry.lastModified ? { lastModified: entry.lastModified } : {}),
     changeFrequency: entry.changeFrequency,
     priority: entry.priority,
   }));

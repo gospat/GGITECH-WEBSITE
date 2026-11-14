@@ -11,22 +11,33 @@ import Innovation from "@/components/Innovation";
 import WhyUs from "@/components/WhyUs";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
-import { createMetadata } from "@/lib/site";
+import { createMetadata, site } from "@/lib/site";
 
-export const metadata: Metadata = createMetadata({
-  title: "Engineering Digital Infrastructure",
-  description:
-    "GGI Tech designs and builds secure, scalable platforms for institutions, businesses, and emerging technologies — from software engineering and system architecture to cloud infrastructure and blockchain.",
-  path: "/",
-  keywords: [
-    "GGI Tech",
-    "software engineering company",
-    "institutional systems",
-    "cloud infrastructure",
-    "blockchain development",
-    "Lagos software company",
-  ],
-});
+const title = "Engineering Digital Infrastructure";
+
+/**
+ * The home page shares its route segment with the root layout, so Next.js does
+ * not apply the layout's `title.template` here — a plain title would render in
+ * the browser tab without the brand name. `absolute` states the fully branded
+ * title explicitly, matching what every other route produces via the template.
+ */
+export const metadata: Metadata = {
+  ...createMetadata({
+    title,
+    description:
+      "GGI Tech designs and builds secure, scalable platforms for institutions, businesses, and emerging technologies — from software engineering and system architecture to cloud infrastructure and blockchain.",
+    path: "/",
+    keywords: [
+      "GGI Tech",
+      "software engineering company",
+      "institutional systems",
+      "cloud infrastructure",
+      "blockchain development",
+      "Lagos software company",
+    ],
+  }),
+  title: { absolute: `${title} | ${site.name}` },
+};
 
 export default function Home() {
   return (

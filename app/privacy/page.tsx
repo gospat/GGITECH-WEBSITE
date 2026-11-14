@@ -21,7 +21,7 @@ export default function PrivacyPage() {
 
         <div className="space-y-8 text-gray-300 leading-relaxed">
           <p>
-            GOSPAT GLOBAL INNOVATIONS LTD (“Company”, “we”, “our”, or “us”), operating its
+            GOSPAT Global Innovations Ltd (“Company”, “we”, “our”, or “us”), operating its
             technology brand as GGI Tech, respects your privacy and is committed to protecting
             personal information. This Privacy Policy explains how we collect, use, disclose, and
             protect information when you visit our website and use our forms and related online

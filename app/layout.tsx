@@ -1,29 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
 import PageTransition from "@/components/PageTransition";
 import { absoluteUrl, defaultOgImage, site, siteUrl } from "@/lib/site";
-
-/**
- * Fonts are self-hosted (latin subset, variable weights) so builds are
- * deterministic and no third-party request is made to Google Fonts.
- */
-const sans = localFont({
-  src: "./fonts/space-grotesk-latin.woff2",
-  weight: "300 700",
-  variable: "--font-sans",
-  display: "swap",
-  fallback: ["system-ui", "sans-serif"],
-});
-
-const mono = localFont({
-  src: "./fonts/jetbrains-mono-latin.woff2",
-  weight: "100 800",
-  variable: "--font-mono",
-  display: "swap",
-  fallback: ["ui-monospace", "monospace"],
-});
+import { mono, sans } from "./fonts";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

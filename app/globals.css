@@ -32,6 +32,9 @@
     letter-spacing: -0.03em;
     line-height: 1.2;
     text-wrap: balance;
+    /* A single unbroken string (long URL, email, compound word) must wrap
+       rather than widen the page or be clipped by an overflow-hidden parent. */
+    overflow-wrap: break-word;
   }
 
   h1 {
@@ -42,6 +45,8 @@
   p {
     @apply text-gray-300;
     letter-spacing: 0.01em;
+    /* See the heading rule above: keep real-world long strings from overflowing. */
+    overflow-wrap: break-word;
   }
 
   /* Anchor targets must clear the fixed navigation bar. */

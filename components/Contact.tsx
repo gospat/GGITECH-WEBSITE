@@ -26,7 +26,17 @@ const emptyForm: FormState = {
 const inputClass =
   "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-gray-500 transition-colors focus:border-primary focus:outline-none";
 
-export default function Contact() {
+type Props = {
+  /**
+   * Heading level for the section title. The home page already renders an h1 in
+   * the hero, so it uses the default h2. The dedicated contact page has no other
+   * heading and passes "h1".
+   */
+  headingLevel?: "h1" | "h2";
+};
+
+export default function Contact({ headingLevel = "h2" }: Props) {
+  const Heading = headingLevel;
   const reduceMotion = useReducedMotion();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -73,7 +83,7 @@ export default function Contact() {
   };
 
   return (
-    <section id="contact" className="relative overflow-hidden bg-background py-20 sm:py-24">
+    <section id="contact" className="relative overflow-hidden bg-background py-24">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-20"
@@ -85,9 +95,9 @@ export default function Contact() {
             <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-primary">
               Let&apos;s Build the Future Together
             </p>
-            <h2 className="mb-6 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
+            <Heading className="mb-6 text-4xl font-bold leading-tight md:text-5xl">
               Start Your <span className="text-gradient">Project</span>
-            </h2>
+            </Heading>
             <p className="mb-8 text-base leading-relaxed text-gray-400 sm:text-lg">
               Tell us what you are building and we will respond with a clear path forward. If you
               already have detailed requirements, use the project brief form so we can scope your
@@ -296,7 +306,7 @@ export default function Contact() {
                   type="submit"
                   disabled={status === "submitting"}
                   aria-busy={status === "submitting"}
-                  className="inline-flex w-full items-center justify-center rounded-lg bg-primary px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {status === "submitting" ? (
                     <>

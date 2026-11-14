@@ -84,7 +84,7 @@ export default function Navbar() {
             ))}
             <Link
               href="/project-brief"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-300 hover:bg-blue-600"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors duration-300 hover:bg-blue-600"
             >
               Start a Project
             </Link>
@@ -138,7 +138,7 @@ export default function Navbar() {
                 <Link
                   href="/project-brief"
                   onClick={() => setIsMenuOpen(false)}
-                  className="block rounded-md bg-primary px-3 py-3 text-center text-base font-medium text-white transition-colors hover:bg-blue-600"
+                  className="block rounded-full bg-primary px-3 py-3 text-center text-base font-medium text-white transition-colors hover:bg-blue-600"
                 >
                   Start a Project
                 </Link>

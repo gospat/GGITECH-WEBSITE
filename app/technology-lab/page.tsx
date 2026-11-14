@@ -47,8 +47,11 @@ export default function TechLabPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-32">
           <SpotlightCard className="p-10 bg-white/5 border border-white/10 group h-full">
-            <Brain className="w-16 h-16 text-primary mb-8 group-hover:scale-110 transition-transform" />
-            <h2 className="text-3xl font-bold mb-4">Artificial Intelligence Systems</h2>
+            <Brain
+              className="w-16 h-16 text-primary mb-8 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Artificial Intelligence Systems</h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               Exploring intelligent automation and data-driven decision-making platforms. We are
               building models that optimize institutional workflows and detect anomalies in
@@ -65,8 +68,13 @@ export default function TechLabPage() {
           </SpotlightCard>
 
           <SpotlightCard className="p-10 bg-white/5 border border-white/10 group h-full">
-            <Cpu className="w-16 h-16 text-purple-400 mb-8 group-hover:scale-110 transition-transform" />
-            <h2 className="text-3xl font-bold mb-4">Blockchain & Decentralized Networks</h2>
+            <Cpu
+              className="w-16 h-16 text-purple-400 mb-8 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Blockchain & Decentralized Networks
+            </h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               Developing infrastructure and applications that support decentralized ecosystems. Our
               focus is on scalable consensus mechanisms and interoperability protocols.
@@ -82,8 +90,11 @@ export default function TechLabPage() {
           </SpotlightCard>
 
           <SpotlightCard className="p-10 bg-white/5 border border-white/10 group h-full">
-            <Database className="w-16 h-16 text-emerald-400 mb-8 group-hover:scale-110 transition-transform" />
-            <h2 className="text-3xl font-bold mb-4">Institutional Data Platforms</h2>
+            <Database
+              className="w-16 h-16 text-emerald-400 mb-8 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Institutional Data Platforms</h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               Designing secure digital systems that enable organizations to manage and analyze
               critical information with strong encryption and strict access controls.
@@ -91,8 +102,11 @@ export default function TechLabPage() {
           </SpotlightCard>
 
           <SpotlightCard className="p-10 bg-white/5 border border-white/10 group h-full">
-            <Activity className="w-16 h-16 text-red-400 mb-8 group-hover:scale-110 transition-transform" />
-            <h2 className="text-3xl font-bold mb-4">Digital Health Platforms</h2>
+            <Activity
+              className="w-16 h-16 text-red-400 mb-8 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Digital Health Platforms</h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               Building systems that enhance healthcare accessibility and efficiency through
               technology, focusing on telemedicine and remote patient monitoring.
@@ -102,7 +116,7 @@ export default function TechLabPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
-            <h2 className="text-3xl font-bold mb-4">How the Lab Operates</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">How the Lab Operates</h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               The Technology Lab is where we pressure-test ideas before they become production
               systems. We prototype quickly, measure performance and reliability, and document the
@@ -131,7 +145,7 @@ export default function TechLabPage() {
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-10">
-            <h2 className="text-3xl font-bold mb-4">Responsible Innovation</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Responsible Innovation</h2>
             <p className="text-gray-400 text-lg leading-relaxed mb-6">
               We treat security and privacy as core research constraints. Experimental work is
               evaluated for data minimization, access control boundaries, and operational safety.

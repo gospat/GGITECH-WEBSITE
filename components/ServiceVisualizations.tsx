@@ -25,7 +25,8 @@ import {
 /**
  * Decorative animation frame. The infinite loops inside these visuals are
  * paused while the visual is off-screen, and disabled entirely for visitors who
- * prefer reduced motion.
+ * prefer reduced motion. The whole frame is presentational — the surrounding
+ * service copy carries the meaning — so it is hidden from assistive technology.
  */
 function VizFrame({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,7 +34,7 @@ function VizFrame({ children }: { children: ReactNode }) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div ref={ref} className="h-full w-full">
+      <div ref={ref} className="h-full w-full" aria-hidden="true">
         {inView ? children : null}
       </div>
     </MotionConfig>

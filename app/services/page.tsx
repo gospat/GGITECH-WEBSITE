@@ -122,8 +122,8 @@ export default function ServicesPage() {
                     {String(index + 1).padStart(2, "0")}
                   </div>
                   <div>
-                    <div className="text-white font-semibold">{item.step}</div>
-                    <div className="text-gray-400 text-sm leading-relaxed">{item.detail}</div>
+                    <h3 className="text-white font-semibold">{item.step}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">{item.detail}</p>
                   </div>
                 </div>
               ))}
@@ -166,7 +166,7 @@ export default function ServicesPage() {
           </p>
           <Link
             href="/project-brief"
-            className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-primary rounded-full hover:bg-blue-600 transition-all duration-300"
+            className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-primary rounded-full hover:bg-blue-600 transition-all duration-300"
           >
             Submit a Project Brief
             <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true" />

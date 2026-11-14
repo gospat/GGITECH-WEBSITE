@@ -1102,7 +1102,7 @@ export default function ProjectBriefForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-primary rounded-lg hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
+            className="w-full inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white bg-primary rounded-full hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
             {step < TOTAL_STEPS - 1 ? (
               <>

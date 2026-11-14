@@ -72,7 +72,7 @@ export default function WhyUs() {
                 className="text-center p-8 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300"
               >
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/5 mb-6">
-                  <Icon className={`w-12 h-12 ${reason.accent}`} aria-hidden="true" />
+                  <Icon className={`w-10 h-10 ${reason.accent}`} aria-hidden="true" />
                 </div>
                 <h3 className="text-xl font-bold mb-4">{reason.title}</h3>
                 <p className="text-gray-400 leading-relaxed">{reason.description}</p>

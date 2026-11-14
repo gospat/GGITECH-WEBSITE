@@ -71,7 +71,10 @@ export default function CareersPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
           <SpotlightCard className="p-8 h-full bg-white/5 border border-white/10 group">
-            <Zap className="w-10 h-10 text-yellow-400 mb-6 group-hover:scale-110 transition-transform" />
+            <Zap
+              className="w-10 h-10 text-yellow-400 mb-6 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
             <h3 className="text-2xl font-bold mb-4">Innovation First</h3>
             <p className="text-gray-400 leading-relaxed">
               We push the boundaries of what&apos;s possible, constantly experimenting with emerging
@@ -80,7 +83,10 @@ export default function CareersPage() {
           </SpotlightCard>
 
           <SpotlightCard className="p-8 h-full bg-white/5 border border-white/10 group">
-            <Users className="w-10 h-10 text-primary mb-6 group-hover:scale-110 transition-transform" />
+            <Users
+              className="w-10 h-10 text-primary mb-6 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
             <h3 className="text-2xl font-bold mb-4">Collaborative Culture</h3>
             <p className="text-gray-400 leading-relaxed">
               Work alongside talented engineers and researchers who are passionate about building
@@ -89,7 +95,10 @@ export default function CareersPage() {
           </SpotlightCard>
 
           <SpotlightCard className="p-8 h-full bg-white/5 border border-white/10 group">
-            <Globe className="w-10 h-10 text-emerald-400 mb-6 group-hover:scale-110 transition-transform" />
+            <Globe
+              className="w-10 h-10 text-emerald-400 mb-6 group-hover:scale-110 transition-transform"
+              aria-hidden="true"
+            />
             <h3 className="text-2xl font-bold mb-4">Global Impact</h3>
             <p className="text-gray-400 leading-relaxed">
               Contribute to projects that solve real-world challenges for institutions across Africa
@@ -101,31 +110,46 @@ export default function CareersPage() {
         <div className="mb-20">
           <h2 className="text-3xl font-bold mb-12 text-center">Open Positions</h2>
           <div className="space-y-6">
-            {careers.map((job, index) => (
-              <div
-                key={index}
-                className="flex flex-col md:flex-row justify-between items-center p-8 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors"
-              >
-                <div className="mb-6 md:mb-0 text-center md:text-left">
-                  <h3 className="text-xl font-bold text-white mb-2">{job.role}</h3>
-                  <div className="flex items-center justify-center md:justify-start space-x-4 text-sm text-gray-400 mb-4">
-                    <span className="flex items-center">
-                      <Briefcase className="w-4 h-4 mr-2" /> {job.type}
-                    </span>
-                    <span className="flex items-center">
-                      <Globe className="w-4 h-4 mr-2" /> {job.location}
-                    </span>
-                  </div>
-                  <p className="text-gray-400 max-w-2xl">{job.description}</p>
-                </div>
+            {careers.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
+                <p className="text-gray-300">
+                  There are no open positions right now, but we are always glad to meet strong
+                  engineers.
+                </p>
                 <a
-                  href={`mailto:${site.careersEmail}?subject=Application for ${job.role}`}
-                  className="px-6 py-3 bg-primary text-white rounded-full hover:bg-blue-600 transition-colors font-medium"
+                  href={`mailto:${site.careersEmail}`}
+                  className="mt-6 inline-flex items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-white/10"
                 >
-                  Apply Now
+                  Send a speculative application
                 </a>
               </div>
-            ))}
+            ) : (
+              careers.map((job) => (
+                <div
+                  key={job.role}
+                  className="flex flex-col md:flex-row justify-between items-center p-8 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors"
+                >
+                  <div className="mb-6 md:mb-0 text-center md:text-left">
+                    <h3 className="text-xl font-bold text-white mb-2">{job.role}</h3>
+                    <div className="flex items-center justify-center md:justify-start space-x-4 text-sm text-gray-400 mb-4">
+                      <span className="flex items-center">
+                        <Briefcase className="w-4 h-4 mr-2" aria-hidden="true" /> {job.type}
+                      </span>
+                      <span className="flex items-center">
+                        <Globe className="w-4 h-4 mr-2" aria-hidden="true" /> {job.location}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 max-w-2xl">{job.description}</p>
+                  </div>
+                  <a
+                    href={`mailto:${site.careersEmail}?subject=Application for ${job.role}`}
+                    className="px-6 py-3 bg-primary text-white rounded-full hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    Apply Now
+                  </a>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -193,7 +217,7 @@ export default function CareersPage() {
           </p>
           <a
             href={`mailto:${site.careersEmail}`}
-            className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-300"
+            className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-300"
           >
             Contact Recruiting
           </a>

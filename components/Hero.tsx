@@ -28,17 +28,11 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.8 }}
         >
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-gray-300 sm:text-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />A Division of
-            GOSPAT Global Innovations Ltd
-          </p>
-
           <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
             <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
               Engineering the
             </span>
-            <br />
-            <span className="text-gradient glow-text">Digital Infrastructure</span>
+            <br /> <span className="text-gradient glow-text">Digital Infrastructure</span>
             <span className="bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
               {" "}
               of Tomorrow
@@ -79,9 +73,8 @@ export default function Hero() {
             {highlights.map((item) => (
               <li
                 key={item}
-                className="flex items-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:text-sm"
+                className="text-xs font-medium uppercase tracking-wider text-gray-500 sm:text-sm"
               >
-                <span className="mr-2 h-1 w-1 rounded-full bg-primary" aria-hidden="true" />
                 {item}
               </li>
             ))}

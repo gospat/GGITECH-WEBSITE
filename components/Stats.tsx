@@ -59,7 +59,7 @@ export default function Stats() {
 
   return (
     <section
-      className="py-20 bg-background relative border-y border-white/5"
+      className="py-24 bg-background relative border-y border-white/5"
       aria-label="Scope of practice"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

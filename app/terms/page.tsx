@@ -21,7 +21,7 @@ export default function TermsPage() {
 
         <div className="space-y-8 text-gray-300 leading-relaxed">
           <p>
-            Welcome to the website of GOSPAT GLOBAL INNOVATIONS LTD (“Company”, “we”, “our”, or
+            Welcome to the website of GOSPAT Global Innovations Ltd (“Company”, “we”, “our”, or
             “us”), operating its technology brand as GGI Tech (“GGI Tech”). These Terms of Service
             (“Terms”) govern your access to and use of our website, forms, and related online
             experiences (collectively, the “Site”).

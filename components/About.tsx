@@ -55,7 +55,7 @@ export default function About() {
               className="space-y-6 text-gray-400 text-lg leading-relaxed"
             >
               <p>
-                GOSPAT GLOBAL INNOVATIONS LTD is a technology company focused on developing secure,
+                GOSPAT Global Innovations Ltd is a technology company focused on developing secure,
                 scalable digital systems for modern organizations.
               </p>
               <p>

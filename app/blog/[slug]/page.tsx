@@ -1,24 +1,39 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getBlogPostBySlug } from "@/lib/blog/posts";
+import { getAllBlogPostMeta, getBlogPostBySlug } from "@/lib/blog/posts";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import Illustration from "@/components/Illustration";
+import { createMetadata } from "@/lib/site";
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
 
+export function generateStaticParams() {
+  return getAllBlogPostMeta().map((post) => ({ slug: post.slug }));
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = getBlogPostBySlug(slug);
   if (!post) return {};
-  return {
-    title: `${post.title} | GGI Tech`,
+
+  const published = new Date(post.date);
+
+  // The root layout already appends "| GGI Tech" via title.template, so the
+  // title is passed through plain here to avoid a doubled brand suffix.
+  return createMetadata({
+    title: post.title,
     description: post.excerpt,
-  };
+    path: `/blog/${post.slug}`,
+    image: post.coverImageSrc,
+    type: "article",
+    keywords: [post.category, "engineering", "GGI Tech"],
+    ...(Number.isNaN(published.getTime()) ? {} : { publishedTime: published.toISOString() }),
+  });
 }
 
 export default async function BlogPostPage({ params }: Props) {
@@ -35,7 +50,7 @@ export default async function BlogPostPage({ params }: Props) {
           href="/blog"
           className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
           Back to Blog
         </Link>
 
