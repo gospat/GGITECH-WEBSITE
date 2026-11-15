@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SpotlightCard from "@/components/SpotlightCard";
 import { Briefcase, Users, Zap, Globe } from "lucide-react";
 import Illustration from "@/components/Illustration";
-import { createMetadata, site } from "@/lib/site";
+import { contactEmail, createMetadata } from "@/lib/site";
 
 export const metadata: Metadata = createMetadata({
   title: "Careers",
@@ -116,12 +117,21 @@ export default function CareersPage() {
                   There are no open positions right now, but we are always glad to meet strong
                   engineers.
                 </p>
-                <a
-                  href={`mailto:${site.careersEmail}`}
-                  className="mt-6 inline-flex items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-white/10"
-                >
-                  Send a speculative application
-                </a>
+                {contactEmail ? (
+                  <a
+                    href={`mailto:${contactEmail}?subject=Speculative application`}
+                    className="mt-6 inline-flex items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-white/10"
+                  >
+                    Send a speculative application
+                  </a>
+                ) : (
+                  <Link
+                    href="/contact"
+                    className="mt-6 inline-flex items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-all duration-300 hover:bg-white/10"
+                  >
+                    Introduce yourself
+                  </Link>
+                )}
               </div>
             ) : (
               careers.map((job) => (
@@ -142,7 +152,11 @@ export default function CareersPage() {
                     <p className="text-gray-400 max-w-2xl">{job.description}</p>
                   </div>
                   <a
-                    href={`mailto:${site.careersEmail}?subject=Application for ${job.role}`}
+                    href={
+                      contactEmail
+                        ? `mailto:${contactEmail}?subject=Application for ${job.role}`
+                        : `/contact?role=${encodeURIComponent(job.role)}`
+                    }
                     className="px-6 py-3 bg-primary text-white rounded-full hover:bg-blue-600 transition-colors font-medium"
                   >
                     Apply Now
@@ -215,12 +229,21 @@ export default function CareersPage() {
             We are always interested in connecting with talented individuals. Send us your resume
             and tell us how you can contribute to our mission.
           </p>
-          <a
-            href={`mailto:${site.careersEmail}`}
-            className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-300"
-          >
-            Contact Recruiting
-          </a>
+          {contactEmail ? (
+            <a
+              href={`mailto:${contactEmail}?subject=Careers enquiry`}
+              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-300"
+            >
+              Contact Recruiting
+            </a>
+          ) : (
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-medium text-white border border-white/20 rounded-full hover:bg-white/10 transition-all duration-300"
+            >
+              Get in touch
+            </Link>
+          )}
         </div>
       </div>
 

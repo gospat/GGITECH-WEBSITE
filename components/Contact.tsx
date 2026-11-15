@@ -5,7 +5,20 @@ import { AlertCircle, CheckCircle, Loader2, Mail, MapPin, Send } from "lucide-re
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { MIN_MESSAGE_LENGTH } from "@/lib/contactMessage";
-import { site } from "@/lib/site";
+import { contactEmail, site } from "@/lib/site";
+
+/**
+ * The visitor is only ever told to email an address when one is published.
+ * With no address configured these fall back to retrying, because naming a
+ * mailbox that may not exist is worse than naming none.
+ */
+const SERVER_ERROR_FALLBACK = contactEmail
+  ? `Something went wrong. Please email ${contactEmail} directly.`
+  : "Something went wrong. Please try again in a moment.";
+
+const NETWORK_ERROR_FALLBACK = contactEmail
+  ? `We could not reach the server. Check your connection or email ${contactEmail} directly.`
+  : "We could not reach the server. Check your connection and try again.";
 
 type FormState = {
   name: string;
@@ -41,6 +54,9 @@ export default function Contact({ headingLevel = "h2" }: Props) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<{ reference?: string; acknowledged: boolean } | null>(
+    null
+  );
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -58,27 +74,26 @@ export default function Contact({ headingLevel = "h2" }: Props) {
         body: JSON.stringify(form),
       });
 
-      const result: { ok?: boolean; error?: string; errors?: string[] } = await response
-        .json()
-        .catch(() => ({}));
+      const result: {
+        ok?: boolean;
+        error?: string;
+        errors?: string[];
+        reference?: string;
+        acknowledged?: boolean;
+      } = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.ok) {
         setStatus("error");
-        setErrorMessage(
-          result.error ??
-            result.errors?.[0] ??
-            `Something went wrong. Please email ${site.email} directly.`
-        );
+        setErrorMessage(result.error ?? result.errors?.[0] ?? SERVER_ERROR_FALLBACK);
         return;
       }
 
       setForm(emptyForm);
+      setReceipt({ reference: result.reference, acknowledged: Boolean(result.acknowledged) });
       setStatus("success");
     } catch {
       setStatus("error");
-      setErrorMessage(
-        `We could not reach the server. Please check your connection or email ${site.email} directly.`
-      );
+      setErrorMessage(NETWORK_ERROR_FALLBACK);
     }
   };
 
@@ -146,12 +161,18 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                 </span>
                 <div>
                   <h3 className="font-semibold text-white">Email Us</h3>
-                  <a
-                    href={`mailto:${site.email}`}
-                    className="text-gray-400 transition-colors hover:text-primary"
-                  >
-                    {site.email}
-                  </a>
+                  {contactEmail ? (
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="text-gray-400 transition-colors hover:text-primary"
+                    >
+                      {contactEmail}
+                    </a>
+                  ) : (
+                    <p className="text-gray-400">
+                      Use the form on this page and we will reply by email.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -185,12 +206,27 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-white">Message Sent</h3>
                 <p className="text-gray-400">
-                  Thank you for reaching out. A confirmation has been sent to your inbox and our
-                  team will respond shortly.
+                  Thank you for reaching out. Our team will respond using the details you provided.
                 </p>
+                {receipt?.acknowledged ? (
+                  <p className="mt-3 text-sm text-gray-500">
+                    We have also sent a confirmation to the address you provided.
+                  </p>
+                ) : null}
+                {receipt?.reference ? (
+                  <p className="mt-4 text-sm text-gray-500">
+                    Your reference is{" "}
+                    <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>
+                    . It identifies this enquiry — quote it if you reply so we can match your
+                    message to it.
+                  </p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setStatus("idle")}
+                  onClick={() => {
+                    setReceipt(null);
+                    setStatus("idle");
+                  }}
                   className="mt-6 font-medium text-primary transition-colors hover:text-white"
                 >
                   Send another message

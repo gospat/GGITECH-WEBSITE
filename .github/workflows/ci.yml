@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   quality:
-    name: Lint, typecheck & build
+    name: Lint, typecheck, test & build
     runs-on: ubuntu-latest
 
     env:
@@ -44,6 +44,10 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # Tests run against mocks: no email is sent and no credentials are needed.
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

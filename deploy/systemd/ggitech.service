@@ -27,7 +27,7 @@ ExecStart=/usr/bin/node server.js
 # sandbox below is entered, so ProtectSystem=strict cannot affect it.
 #
 # Deliberately NOT prefixed with "-": if the environment file is missing, the
-# application would start without its SMTP configuration and fail only when a
+# application would lose its runtime configuration entirely and fail only when a
 # visitor submitted a form. Refusing to start is the louder, safer failure, and
 # the deployment activator surfaces it as a failed health check.
 EnvironmentFile=/var/www/ggitech/shared/.env.production

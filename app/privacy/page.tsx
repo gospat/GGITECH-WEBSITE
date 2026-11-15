@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { createMetadata } from "@/lib/site";
+import { contactEmail, createMetadata } from "@/lib/site";
 
 export const metadata: Metadata = createMetadata({
   title: "Privacy Policy",
@@ -224,10 +225,19 @@ export default function PrivacyPage() {
             rights.
           </p>
           <p>
-            To submit a request, contact us at <strong>contact@ggitech.dev</strong>. We may need to
-            verify your identity before fulfilling requests. You may also designate an authorized
-            agent to make a request on your behalf, subject to verification and proof of
-            authorization.
+            To submit a request, use our{" "}
+            <Link href="/contact" className="text-primary hover:text-white">
+              contact form
+            </Link>
+            {contactEmail ? (
+              <>
+                {" "}
+                or email <strong>{contactEmail}</strong>
+              </>
+            ) : null}
+            . We may need to verify your identity before fulfilling requests. You may also designate
+            an authorized agent to make a request on your behalf, subject to verification and proof
+            of authorization.
           </p>
 
           <h2 className="text-2xl font-bold text-white mt-12 mb-4">13. Children’s Privacy</h2>
@@ -255,7 +265,17 @@ export default function PrivacyPage() {
 
           <h2 className="text-2xl font-bold text-white mt-12 mb-4">16. Contact</h2>
           <p>
-            For privacy-related questions or requests, contact: <strong>contact@ggitech.dev</strong>
+            For privacy-related questions or requests, use our{" "}
+            <Link href="/contact" className="text-primary hover:text-white">
+              contact form
+            </Link>
+            {contactEmail ? (
+              <>
+                {" "}
+                or email <strong>{contactEmail}</strong>
+              </>
+            ) : null}
+            .
           </p>
         </div>
       </div>

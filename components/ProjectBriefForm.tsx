@@ -76,9 +76,14 @@ const STEPS = [
   },
 ] as const;
 
+/**
+ * Shown after a successful submission. It states what will actually happen:
+ * no response window is promised, and the PDF summary is described honestly as
+ * a record the team keeps rather than something the visitor is emailed.
+ */
 const NEXT_STEPS = [
-  "We review your brief and reply within one business day.",
-  "You receive a copy of your answers as a structured PDF by email.",
+  "Our team reviews your brief and matches it to the right specialist.",
+  "We contact you using the details you provided.",
   "If it looks like a fit, we book a short scoping call.",
 ];
 
@@ -276,6 +281,9 @@ export default function ProjectBriefForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [receipt, setReceipt] = useState<{ reference?: string; acknowledged: boolean } | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [restored, setRestored] = useState(false);
@@ -458,6 +466,15 @@ export default function ProjectBriefForm() {
         return;
       }
 
+      const data = (await res.json().catch(() => null)) as {
+        reference?: string;
+        acknowledged?: boolean;
+      } | null;
+
+      setReceipt({
+        reference: data?.reference,
+        acknowledged: Boolean(data?.acknowledged),
+      });
       setIsSubmitting(false);
       setIsSuccess(true);
       try {
@@ -532,9 +549,23 @@ export default function ProjectBriefForm() {
             Brief Submitted
           </h2>
           <p className="text-gray-400 max-w-xl">
-            Thank you. A confirmation has been sent to your email, and our team has received your
-            project brief.
+            Thank you. Our team has received your project brief and will get back to you using the
+            details you provided.
           </p>
+
+          {receipt?.acknowledged ? (
+            <p className="mt-3 text-sm text-gray-500">
+              We have also sent a confirmation to the address you provided.
+            </p>
+          ) : null}
+
+          {receipt?.reference ? (
+            <p className="mt-4 text-sm text-gray-500">
+              Your reference is{" "}
+              <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>. It
+              identifies this enquiry — quote it if you reply so we can match your message to it.
+            </p>
+          ) : null}
 
           <div className="mt-8 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 text-left">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
@@ -553,6 +584,7 @@ export default function ProjectBriefForm() {
           <button
             onClick={() => {
               setIsSuccess(false);
+              setReceipt(null);
               setFieldErrors({});
               setDirection(1);
               setStep(0);

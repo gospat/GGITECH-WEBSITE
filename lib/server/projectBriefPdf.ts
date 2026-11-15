@@ -1,11 +1,17 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { ProjectBriefSubmission } from "@/lib/projectBrief";
 
+/**
+ * Builds the PDF summary attached to the internal notification.
+ *
+ * It carries the customer's answers and nothing else. Request metadata such as
+ * the source IP and user agent is deliberately not included: the document is
+ * delivered as an email attachment, and internal server details have no place
+ * in correspondence that could be forwarded or printed.
+ */
 type PdfBuildInput = {
   submission: ProjectBriefSubmission;
   submittedAtISO: string;
-  sourceIp?: string;
-  userAgent?: string;
 };
 
 function yesNoLabel(value: "yes" | "no"): string {
@@ -240,24 +246,6 @@ export async function buildProjectBriefPdf(input: PdfBuildInput): Promise<Uint8A
       { label: "Preferred Contact Method", value: submission.contact.preferredContactMethod },
     ]).join("\n"),
     { size: bodySize }
-  );
-
-  ensureSpace(18);
-  y -= 8;
-  page.drawText("Internal Metadata", {
-    x: marginX,
-    y,
-    size: 10,
-    font: fontBold,
-    color: colorMuted,
-  });
-  y -= 14;
-  drawWrappedText(
-    bulletList([
-      { label: "Source IP", value: input.sourceIp || "-" },
-      { label: "User Agent", value: input.userAgent || "-" },
-    ]).join("\n"),
-    { size: 9.5, color: colorMuted }
   );
 
   return pdfDoc.save();

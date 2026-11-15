@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { validateProjectBrief } from "@/lib/projectBrief";
-import { site } from "@/lib/site";
-import { getMailEnv } from "@/lib/server/env";
-import { getTransporter } from "@/lib/server/mailer";
+import { buildProjectBriefEnquiry } from "@/lib/server/email/enquiry";
+import { emailFailureResponse } from "@/lib/server/email/http";
+import { createEnquiryReference } from "@/lib/server/email/reference";
+import { sendEnquiryEmails } from "@/lib/server/email/service";
 import { buildProjectBriefPdf } from "@/lib/server/projectBriefPdf";
-import { getRequestIp, getUserAgent, isSameOriginRequest } from "@/lib/server/requestMeta";
 import { rateLimit } from "@/lib/server/rateLimit";
+import { getRequestIp, getUserAgent, isSameOriginRequest } from "@/lib/server/requestMeta";
+import {
+  recallSubmission,
+  rememberSubmission,
+  submissionFingerprint,
+} from "@/lib/server/submissionGuard";
+
+const MAX_REQUESTS_PER_HOUR = 3;
 
 export async function POST(req: NextRequest) {
-  // Checked before any work so a third-party page cannot spend our SMTP quota.
+  // Checked before any work so a third-party page cannot spend our email quota.
   if (!isSameOriginRequest(req)) {
     return NextResponse.json({ ok: false, error: "Request blocked." }, { status: 403 });
   }
@@ -36,8 +44,15 @@ export async function POST(req: NextRequest) {
 
   const ip = getRequestIp(req);
   const ua = getUserAgent(req);
-  const limiterKey = ip || ua || "unknown";
-  const limitResult = await rateLimit({ key: limiterKey, limit: 3, windowMs: 60 * 60 * 1000 });
+
+  // The key comes from `requestMeta`, which walks the forwarded chain back by
+  // TRUSTED_PROXY_HOPS. A forged X-Forwarded-For therefore cannot hand a caller
+  // a fresh bucket.
+  const limitResult = await rateLimit({
+    key: ip || ua || "unknown",
+    limit: MAX_REQUESTS_PER_HOUR,
+    windowMs: 60 * 60 * 1000,
+  });
   if (!limitResult.ok) {
     return NextResponse.json(
       { ok: false, error: "Too many requests. Please try again later." },
@@ -50,80 +65,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, errors: validation.errors }, { status: 400 });
   }
 
-  let env;
-  try {
-    env = getMailEnv();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Server email configuration is missing." },
-      { status: 500 }
-    );
+  const submission = validation.data;
+  const fingerprint = submissionFingerprint(["project-brief", JSON.stringify(submission)]);
+
+  // An identical brief means the browser replayed the POST and the first copy
+  // already reached the team, so this one answers with that same success
+  // instead of sending a second email and a second PDF.
+  const alreadyAccepted = recallSubmission(fingerprint);
+  if (alreadyAccepted) {
+    return NextResponse.json({ ok: true, reference: alreadyAccepted }, { status: 200 });
   }
 
-  const submission = validation.data;
-  const submittedAtISO = new Date().toISOString();
+  const submittedAt = new Date();
+  const submittedAtISO = submittedAt.toISOString();
+  const reference = createEnquiryReference(submittedAt);
 
-  const pdfBytes = await buildProjectBriefPdf({
-    submission,
-    submittedAtISO,
-    sourceIp: ip,
-    userAgent: ua,
-  });
-
-  const transporter = getTransporter();
-  const internalSubject = `New Website Project Brief — ${submission.business.businessName}`;
-
-  // An SMTP failure must not surface as an unhandled 500 — the client gets a
-  // sanitised message and the real error stays in the server log.
+  let delivery;
   try {
-    await transporter.sendMail({
-      from: env.fromEmail,
-      to: env.officialBriefEmail,
-      replyTo: submission.contact.email,
-      subject: internalSubject,
-      text: [
-        "A new website project brief has been submitted.",
-        "",
-        `Client: ${submission.contact.clientName}`,
-        `Email: ${submission.contact.email}`,
-        `Phone: ${submission.contact.phone || "-"}`,
-        "",
-        "The PDF summary is attached.",
-      ].join("\n"),
+    // The PDF is generated before the send so a rendering fault fails the
+    // request cleanly rather than leaving a half-built email behind.
+    const pdfBytes = await buildProjectBriefPdf({ submission, submittedAtISO });
+
+    delivery = await sendEnquiryEmails({
+      enquiry: buildProjectBriefEnquiry({ submission, reference, submittedAt }),
       attachments: [
         {
           filename: `project-brief-${submission.business.businessName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${submittedAtISO.slice(
             0,
             10
           )}.pdf`,
-          content: Buffer.from(pdfBytes),
+          content: pdfBytes,
           contentType: "application/pdf",
         },
       ],
     });
-
-    await transporter.sendMail({
-      from: env.fromEmail,
-      to: submission.contact.email,
-      subject: "We received your project brief — GGI Tech",
-      text: [
-        `Dear ${submission.contact.clientName || "Client"},`,
-        "",
-        "Thank you for submitting your website project brief. Your message has been delivered successfully.",
-        "",
-        "Our team will review your requirements and reach out using your preferred contact method.",
-        "",
-        `${site.name} — A Division of ${site.legalName}`,
-        site.email,
-      ].join("\n"),
-    });
   } catch (error) {
-    console.error("project-brief: failed to send mail", error);
-    return NextResponse.json(
-      { ok: false, error: "We could not send your brief. Please try again shortly." },
-      { status: 502 }
-    );
+    return emailFailureResponse(error);
   }
 
-  return NextResponse.json({ ok: true }, { status: 200 });
+  // Recorded only after the provider accepted the notification, so a failure
+  // above leaves the visitor free to correct the form and send again.
+  rememberSubmission(fingerprint, reference);
+
+  // `acknowledged` tells the form whether it may repeat the "confirmation
+  // sent" line. The acknowledgement is sent independently of the notification,
+  // so it can fail after the provider has already accepted the brief.
+  return NextResponse.json(
+    { ok: true, reference, acknowledged: delivery.acknowledgement === "sent" },
+    { status: 200 }
+  );
 }

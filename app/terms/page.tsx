@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { createMetadata } from "@/lib/site";
+import { contactEmail, createMetadata } from "@/lib/site";
 
 export const metadata: Metadata = createMetadata({
   title: "Terms of Service",
@@ -202,7 +203,17 @@ export default function TermsPage() {
 
           <h2 className="text-2xl font-bold text-white mt-12 mb-4">17. Contact</h2>
           <p>
-            Questions about these Terms can be sent to: <strong>contact@ggitech.dev</strong>
+            Questions about these Terms can be sent through our{" "}
+            <Link href="/contact" className="text-primary hover:text-white">
+              contact form
+            </Link>
+            {contactEmail ? (
+              <>
+                {" "}
+                or by email to <strong>{contactEmail}</strong>
+              </>
+            ) : null}
+            .
           </p>
         </div>
       </div>
