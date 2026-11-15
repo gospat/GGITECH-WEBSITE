@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { validateContactMessage } from "@/lib/contactMessage";
-import { getMailEnv } from "@/lib/server/env";
-import { getTransporter } from "@/lib/server/mailer";
+import { buildContactEnquiry } from "@/lib/server/email/enquiry";
+import { emailFailureResponse } from "@/lib/server/email/http";
+import { createEnquiryReference } from "@/lib/server/email/reference";
+import { sendEnquiryEmails } from "@/lib/server/email/service";
 import { rateLimit } from "@/lib/server/rateLimit";
 import { getRequestIp, getUserAgent, isSameOriginRequest } from "@/lib/server/requestMeta";
-import { site } from "@/lib/site";
+import {
+  recallSubmission,
+  rememberSubmission,
+  submissionFingerprint,
+} from "@/lib/server/submissionGuard";
 import { isRecord } from "@/lib/validation";
 
 const MAX_REQUESTS_PER_HOUR = 5;
 
 export async function POST(req: NextRequest) {
-  // Checked before any work so a third-party page cannot spend our SMTP quota.
+  // Checked before any work so a third-party page cannot spend our email quota.
   if (!isSameOriginRequest(req)) {
     return NextResponse.json({ ok: false, error: "Request blocked." }, { status: 403 });
   }
@@ -35,6 +41,9 @@ export async function POST(req: NextRequest) {
   const ip = getRequestIp(req);
   const userAgent = getUserAgent(req);
 
+  // The key comes from `requestMeta`, which walks the forwarded chain back by
+  // TRUSTED_PROXY_HOPS. A forged X-Forwarded-For therefore cannot hand a caller
+  // a fresh bucket.
   const limit = await rateLimit({
     key: `contact:${ip || userAgent || "unknown"}`,
     limit: MAX_REQUESTS_PER_HOUR,
@@ -53,64 +62,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, errors: validation.errors }, { status: 400 });
   }
 
-  let env;
-  try {
-    env = getMailEnv();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Server email configuration is missing." },
-      { status: 500 }
-    );
+  const message = validation.data;
+  const fingerprint = submissionFingerprint([
+    "contact",
+    message.name,
+    message.email,
+    message.company,
+    message.message,
+  ]);
+
+  // An identical body means the browser replayed the POST and the first copy
+  // already reached the team, so this one answers with that same success
+  // instead of sending a second email.
+  const alreadyAccepted = recallSubmission(fingerprint);
+  if (alreadyAccepted) {
+    return NextResponse.json({ ok: true, reference: alreadyAccepted }, { status: 200 });
   }
 
-  const { name, email, company, message } = validation.data;
-  const transporter = getTransporter();
+  const submittedAt = new Date();
+  const reference = createEnquiryReference(submittedAt);
 
+  let delivery;
   try {
-    await transporter.sendMail({
-      from: env.fromEmail,
-      to: env.officialBriefEmail,
-      replyTo: email,
-      subject: `Website enquiry — ${name}`,
-      text: [
-        "A new message was submitted through the website contact form.",
-        "",
-        `Name: ${name}`,
-        `Email: ${email}`,
-        `Company: ${company || "-"}`,
-        `Received: ${new Date().toISOString()}`,
-        "",
-        "Message:",
-        message,
-      ].join("\n"),
+    delivery = await sendEnquiryEmails({
+      enquiry: buildContactEnquiry({ message, reference, submittedAt }),
     });
-
-    await transporter.sendMail({
-      from: env.fromEmail,
-      to: email,
-      subject: `We received your message — ${site.name}`,
-      text: [
-        `Dear ${name},`,
-        "",
-        `Thank you for contacting ${site.name}. Your message has been received and our team will respond shortly.`,
-        "",
-        "For reference, this is the message you sent:",
-        "",
-        message,
-        "",
-        `${site.name} — A Division of ${site.legalName}`,
-        site.email,
-      ].join("\n"),
-    });
-  } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: `We could not send your message right now. Please email ${site.email} directly.`,
-      },
-      { status: 502 }
-    );
+  } catch (error) {
+    return emailFailureResponse(error);
   }
 
-  return NextResponse.json({ ok: true }, { status: 200 });
+  // Recorded only after the provider accepted the notification, so a failure
+  // above leaves the visitor free to correct the form and send again.
+  rememberSubmission(fingerprint, reference);
+
+  return NextResponse.json(
+    { ok: true, reference, acknowledged: delivery.acknowledgement === "sent" },
+    { status: 200 }
+  );
 }

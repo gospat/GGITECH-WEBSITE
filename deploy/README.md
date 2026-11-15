@@ -69,8 +69,9 @@ The rules that follow from that:
 | Path | What it is |
 | --- | --- |
 | `.github/workflows/deploy-production.yml` | Validate, build, transfer, activate, verify, recover |
-| `.github/workflows/ci.yml` | Formatting, lint, typecheck, build, dependency audit on every PR |
+| `.github/workflows/ci.yml` | Formatting, lint, typecheck, tests, build, dependency audit on every PR |
 | `app/api/health/route.ts` | Readiness endpoint the pipeline and the activator poll |
+| `docs/email.md` | Resend domain verification, DNS records, template changes and previews |
 | `deploy/bin/ggitech-activate` | Root-owned activation script — the only privileged command `deploy` may run |
 | `deploy/sudoers/ggitech-activate` | The single sudoers rule that grants it |
 | `deploy/systemd/ggitech.service` | The application service |
@@ -202,8 +203,8 @@ symlinks — the activation script refuses to run otherwise.
 
 **The credentials file already exists on this host and must not be truncated.**
 The `if` guard is the whole point of this step: `install /dev/null <file>` would
-empty a working SMTP configuration, and the application would only fail later,
-when a visitor submitted the form.
+empty a working configuration, and the application would only fail later, when a
+visitor submitted the form.
 
 ```bash
 ENV_FILE=/var/www/ggitech/shared/.env.production
@@ -222,21 +223,21 @@ sudo chmod 0640 "$ENV_FILE"
 sudo grep -oE '^[A-Z_]+=' "$ENV_FILE" | sort
 ```
 
-The SMTP password lives only in this file, on this server. It is never copied
+The Resend API key lives only in this file, on this server. It is never copied
 into a release, never read by the workflow and never printed. That is also why a
 rollback cannot resurrect a stale credential set.
 
 Required contents:
 
 ```dotenv
-# Mail. Server-only: the workflow never sees these.
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
-FROM_EMAIL=
-OFFICIAL_BRIEF_EMAIL=
+# Outbound email (Resend HTTPS API). Server-only: the workflow never sees these.
+# An existing SMTP block can be deleted once these values are in place — the
+# application no longer reads SMTP_* or FROM_EMAIL.
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=GGITECH <notifications@ggitech.dev>
+CONTACT_NOTIFICATION_EMAIL=
+CONTACT_REPLY_TO_EMAIL=
+CONTACT_AUTO_REPLY_ENABLED=true
 
 # Baked into the build by the workflow; kept here so that server-rendered
 # origin checks agree with what was compiled in.
@@ -251,9 +252,24 @@ UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 
 # nginx is the only proxy in front of the app, so exactly one hop is trusted.
-# Set this to 0 only if Node is ever exposed directly, which it is not.
+# Set this to 0 only if Node is ever exposed directly, which it is not. This is
+# also what stops a forged X-Forwarded-For header from earning a fresh
+# rate-limit bucket.
 TRUSTED_PROXY_HOPS=1
 ```
+
+Two notes on the email values:
+
+- `RESEND_FROM_EMAIL` must be an address on the Resend-verified domain. Sending
+  from `notifications@ggitech.dev` **does not create that mailbox** — it only
+  authorises the domain. Replies route to `CONTACT_REPLY_TO_EMAIL`, so no mailbox
+  is needed for it to work.
+- The service **starts** without these values. It refuses the submission instead,
+  answering `503` with a generic message, and logs `reason: "config:Missing
+  required environment variable: …"`. Verify with a real submission after adding
+  them — a green deploy does not prove the key works.
+
+Domain verification and the exact DNS records are in [`docs/email.md`](../docs/email.md).
 
 Edit the values with `sudoedit "$ENV_FILE"`, which edits a temporary copy and
 writes it back — never with a command that regenerates the whole file.
@@ -763,6 +779,7 @@ npm ci
 npm run format:check     # Prettier
 npm run lint             # ESLint
 npm run typecheck        # tsc --noEmit
+npm test                 # Vitest (Resend and the renderer are mocked)
 npm run build            # next build (output: standalone)
 npm audit --omit=dev --audit-level=high
 ```
@@ -1083,6 +1100,12 @@ release that fails its checks is automatically rolled back.
   copied into a release, so a rollback cannot resurrect an old credential set.
   The workflow never reads them and never prints them, and no installation step
   truncates them.
+- **Outbound email is server-addressed.** The notification recipient comes from
+  the environment, never from a request field, and a customer-supplied address
+  can only ever reach `Reply-To`. Both form endpoints additionally gate on
+  same-origin, carry a honeypot, and are length- and rate-limited, so neither
+  route can be used as a mail relay. Nothing about email is logged beyond a
+  reference number and a non-sensitive reason code.
 - **The host key is pinned.** `GGITECH_SSH_KNOWN_HOSTS` is written to
   `~/.ssh/known_hosts` with `StrictHostKeyChecking yes`, so an intermediary
   cannot present a substitute server. The private key is written `0600` and
@@ -1122,4 +1145,14 @@ release that fails its checks is automatically rolled back.
   the old key from both.
 - The in-process rate limiter resets on every deploy. Setting the two Upstash
   variables moves the counters out of the process and fixes that without a code
-  change.
+  change. The duplicate-submission guard has the same lifetime, so a repeated
+  click spanning a deploy is not recognised as a duplicate.
+- **Email confirmation stops at the provider boundary.** A Resend message id means
+  the message was *accepted for delivery*, not delivered. There is no webhook
+  receiver and no durable enquiry record, so a bounce or a spam filing shows up
+  only in the Resend dashboard. If Resend is unreachable the visitor is told the
+  submission failed rather than being queued — there is no store-and-forward.
+  Both behaviours are deliberate: a database was out of scope for this change.
+- `npm audit --omit=dev` reports four low-severity advisories from
+  `@react-email/render` → `html-to-text`. CI gates at `--audit-level=high`, so
+  they do not block a release; they are recorded here rather than ignored.

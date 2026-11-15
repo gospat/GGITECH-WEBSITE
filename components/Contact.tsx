@@ -41,6 +41,9 @@ export default function Contact({ headingLevel = "h2" }: Props) {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<{ reference?: string; acknowledged: boolean } | null>(
+    null
+  );
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -58,9 +61,13 @@ export default function Contact({ headingLevel = "h2" }: Props) {
         body: JSON.stringify(form),
       });
 
-      const result: { ok?: boolean; error?: string; errors?: string[] } = await response
-        .json()
-        .catch(() => ({}));
+      const result: {
+        ok?: boolean;
+        error?: string;
+        errors?: string[];
+        reference?: string;
+        acknowledged?: boolean;
+      } = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.ok) {
         setStatus("error");
@@ -73,6 +80,7 @@ export default function Contact({ headingLevel = "h2" }: Props) {
       }
 
       setForm(emptyForm);
+      setReceipt({ reference: result.reference, acknowledged: Boolean(result.acknowledged) });
       setStatus("success");
     } catch {
       setStatus("error");
@@ -185,12 +193,26 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-white">Message Sent</h3>
                 <p className="text-gray-400">
-                  Thank you for reaching out. A confirmation has been sent to your inbox and our
-                  team will respond shortly.
+                  Thank you for reaching out. Our team will respond using the details you provided.
                 </p>
+                {receipt?.acknowledged ? (
+                  <p className="mt-3 text-sm text-gray-500">
+                    A confirmation has also been sent to your inbox.
+                  </p>
+                ) : null}
+                {receipt?.reference ? (
+                  <p className="mt-4 text-sm text-gray-500">
+                    Your reference is{" "}
+                    <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>
+                    . Quote it if you need to follow up.
+                  </p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setStatus("idle")}
+                  onClick={() => {
+                    setReceipt(null);
+                    setStatus("idle");
+                  }}
                   className="mt-6 font-medium text-primary transition-colors hover:text-white"
                 >
                   Send another message
