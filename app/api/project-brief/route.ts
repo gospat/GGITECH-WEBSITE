@@ -107,9 +107,9 @@ export async function POST(req: NextRequest) {
   // above leaves the visitor free to correct the form and send again.
   rememberSubmission(fingerprint, reference);
 
-  // `acknowledged` tells the form whether it may repeat the "check your inbox"
-  // line. The acknowledgement is sent independently of the notification, so it
-  // can fail while the brief itself was delivered perfectly well.
+  // `acknowledged` tells the form whether it may repeat the "confirmation
+  // sent" line. The acknowledgement is sent independently of the notification,
+  // so it can fail after the provider has already accepted the brief.
   return NextResponse.json(
     { ok: true, reference, acknowledged: delivery.acknowledgement === "sent" },
     { status: 200 }

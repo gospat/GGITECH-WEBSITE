@@ -210,7 +210,7 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                 </p>
                 {receipt?.acknowledged ? (
                   <p className="mt-3 text-sm text-gray-500">
-                    A confirmation has also been sent to your inbox.
+                    We have also sent a confirmation to the address you provided.
                   </p>
                 ) : null}
                 {receipt?.reference ? (

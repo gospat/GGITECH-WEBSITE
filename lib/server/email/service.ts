@@ -20,8 +20,8 @@
  * The internal notification is attempted first and its failure is fatal — a
  * visitor is never told their enquiry was received when the team's copy was
  * rejected. The acknowledgement is attempted only after that succeeds, and its
- * failure is swallowed and logged, because the enquiry itself has already been
- * delivered by that point.
+ * failure is swallowed and logged, because the provider has already accepted
+ * the enquiry by that point.
  */
 
 import { render } from "@react-email/render";
@@ -52,7 +52,7 @@ export type EnquiryDelivery = {
   reference: string;
   /** Resend's id for the internal notification, for log correlation. */
   notificationMessageId: string;
-  /** `failed` is logged and tolerated: the enquiry itself was already delivered. */
+  /** `failed` is logged and tolerated: the provider has already accepted the enquiry. */
   acknowledgement: "sent" | "skipped" | "failed";
 };
 
