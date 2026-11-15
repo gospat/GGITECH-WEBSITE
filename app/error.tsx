@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Home, RotateCcw } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { site } from "@/lib/site";
+import { contactEmail } from "@/lib/site";
 
 /**
  * Route-level error boundary. Shows a safe, human-readable message instead of a
@@ -65,13 +65,25 @@ export default function Error({
         </div>
 
         <p className="mt-10 text-sm text-gray-500">
-          Still stuck? Email{" "}
-          <a
-            href={`mailto:${site.email}`}
-            className="text-primary transition-colors hover:text-white"
-          >
-            {site.email}
-          </a>
+          {contactEmail ? (
+            <>
+              Still stuck? Email{" "}
+              <a
+                href={`mailto:${contactEmail}`}
+                className="text-primary transition-colors hover:text-white"
+              >
+                {contactEmail}
+              </a>
+            </>
+          ) : (
+            <>
+              Still stuck?{" "}
+              <Link href="/contact" className="text-primary transition-colors hover:text-white">
+                Send us a message
+              </Link>{" "}
+              and we will look into it.
+            </>
+          )}
         </p>
       </div>
 

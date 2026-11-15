@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isEmail } from "@/lib/validation";
 
 const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
@@ -10,13 +11,36 @@ export const siteUrl = (
   configuredUrl && configuredUrl.length > 0 ? configuredUrl : "https://ggitech.dev"
 ).replace(/\/+$/, "");
 
+/**
+ * The address the website publishes and asks visitors to write to.
+ *
+ * Deliberately opt-in. An address with no mailbox behind it is worse than no
+ * address at all: a `mailto:` link that opens a dead destination looks like a
+ * working route, so the customer writes in and hears nothing back. Set
+ * `NEXT_PUBLIC_CONTACT_EMAIL` only once a mailbox exists, is business-owned,
+ * and has been confirmed to receive mail.
+ *
+ * A missing, blank or malformed value yields `null`, and every consumer
+ * renders the contact form instead. Tightening a typo should not publish a
+ * broken address, so an invalid value is treated as "not configured" rather
+ * than passed through.
+ *
+ * This is a public address by definition. Private destinations — where
+ * notifications are delivered and what the acknowledgement replies to — are
+ * separate and stay server-side only (`CONTACT_NOTIFICATION_EMAIL`,
+ * `CONTACT_REPLY_TO_EMAIL`).
+ */
+export const contactEmail: string | null = (() => {
+  const configured = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim();
+  if (!configured) return null;
+  return isEmail(configured) ? configured : null;
+})();
+
 export const site = {
   name: "GGI Tech",
   legalName: "GOSPAT Global Innovations Ltd",
   tagline: "Engineering Digital Infrastructure",
   url: siteUrl,
-  email: "contact@ggitech.dev",
-  careersEmail: "careers@ggitech.dev",
   location: "Lagos, Nigeria",
   locale: "en_NG",
   description:

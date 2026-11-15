@@ -8,10 +8,11 @@ const displayUrl = site.url.replace(/^https?:\/\//, "");
 /**
  * Branded footer.
  *
- * There is deliberately no contact address here. `contact@ggitech.dev` is
- * published on the website but no mailbox on the domain has been confirmed to
- * receive mail yet, so pointing a customer at it from an automated email would
- * risk a reply vanishing. The website is the verified destination.
+ * There is deliberately no contact address here. A mailbox is only published
+ * once it is verified to receive mail (`NEXT_PUBLIC_CONTACT_EMAIL`), and this
+ * footer has no configuration to read — so the website is the destination it
+ * names. That keeps an automated email from pointing a customer at a reply
+ * address that silently bounces.
  *
  * `note` is the reason-for-receipt line, which differs between the internal
  * notification and the customer acknowledgement.

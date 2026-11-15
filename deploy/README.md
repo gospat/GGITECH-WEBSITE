@@ -243,6 +243,13 @@ CONTACT_AUTO_REPLY_ENABLED=true
 # origin checks agree with what was compiled in.
 NEXT_PUBLIC_SITE_URL=https://ggitech.dev
 
+# Public mailbox advertised to customers (contact page, error messages,
+# careers links, structured data). Leave blank until a real mailbox exists and
+# has been tested — a blank or malformed value is treated as "not configured",
+# and every link falls back to the contact form. Unlike the Resend values, this
+# one is inlined at build time: changing it needs a rebuild, not a restart.
+NEXT_PUBLIC_CONTACT_EMAIL=
+
 NEXT_PUBLIC_ENABLE_3D=false
 
 # Optional. Without these, rate-limit counters live in the process and reset on

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { services } from "@/lib/content/services";
-import { footerCompanyNav, footerLegalNav, site, socialLinks } from "@/lib/site";
+import { contactEmail, footerCompanyNav, footerLegalNav, site, socialLinks } from "@/lib/site";
 
 export default function Footer() {
   return (
@@ -18,12 +18,23 @@ export default function Footer() {
               The technology division of {site.legalName}. We engineer secure platforms,
               institutional systems, and infrastructure for organisations that need to rely on them.
             </p>
-            <a
-              href={`mailto:${site.email}`}
-              className="inline-flex items-center font-medium text-primary transition-colors hover:text-white"
-            >
-              {site.email}
-            </a>
+            {/* Only a mailbox that actually receives mail is ever published;
+                otherwise the footer points at the form, which always works. */}
+            {contactEmail ? (
+              <a
+                href={`mailto:${contactEmail}`}
+                className="inline-flex items-center font-medium text-primary transition-colors hover:text-white"
+              >
+                {contactEmail}
+              </a>
+            ) : (
+              <Link
+                href="/contact"
+                className="inline-flex items-center font-medium text-primary transition-colors hover:text-white"
+              >
+                Contact us
+              </Link>
+            )}
             <p className="mt-3 text-sm text-gray-500">{site.location}</p>
 
             {socialLinks.length > 0 ? (

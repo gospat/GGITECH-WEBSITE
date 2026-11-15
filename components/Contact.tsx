@@ -5,7 +5,20 @@ import { AlertCircle, CheckCircle, Loader2, Mail, MapPin, Send } from "lucide-re
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { MIN_MESSAGE_LENGTH } from "@/lib/contactMessage";
-import { site } from "@/lib/site";
+import { contactEmail, site } from "@/lib/site";
+
+/**
+ * The visitor is only ever told to email an address when one is published.
+ * With no address configured these fall back to retrying, because naming a
+ * mailbox that may not exist is worse than naming none.
+ */
+const SERVER_ERROR_FALLBACK = contactEmail
+  ? `Something went wrong. Please email ${contactEmail} directly.`
+  : "Something went wrong. Please try again in a moment.";
+
+const NETWORK_ERROR_FALLBACK = contactEmail
+  ? `We could not reach the server. Check your connection or email ${contactEmail} directly.`
+  : "We could not reach the server. Check your connection and try again.";
 
 type FormState = {
   name: string;
@@ -71,11 +84,7 @@ export default function Contact({ headingLevel = "h2" }: Props) {
 
       if (!response.ok || !result.ok) {
         setStatus("error");
-        setErrorMessage(
-          result.error ??
-            result.errors?.[0] ??
-            `Something went wrong. Please email ${site.email} directly.`
-        );
+        setErrorMessage(result.error ?? result.errors?.[0] ?? SERVER_ERROR_FALLBACK);
         return;
       }
 
@@ -84,9 +93,7 @@ export default function Contact({ headingLevel = "h2" }: Props) {
       setStatus("success");
     } catch {
       setStatus("error");
-      setErrorMessage(
-        `We could not reach the server. Please check your connection or email ${site.email} directly.`
-      );
+      setErrorMessage(NETWORK_ERROR_FALLBACK);
     }
   };
 
@@ -154,12 +161,18 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                 </span>
                 <div>
                   <h3 className="font-semibold text-white">Email Us</h3>
-                  <a
-                    href={`mailto:${site.email}`}
-                    className="text-gray-400 transition-colors hover:text-primary"
-                  >
-                    {site.email}
-                  </a>
+                  {contactEmail ? (
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="text-gray-400 transition-colors hover:text-primary"
+                    >
+                      {contactEmail}
+                    </a>
+                  ) : (
+                    <p className="text-gray-400">
+                      Use the form on this page and we will reply by email.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -204,7 +217,8 @@ export default function Contact({ headingLevel = "h2" }: Props) {
                   <p className="mt-4 text-sm text-gray-500">
                     Your reference is{" "}
                     <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>
-                    . Quote it if you need to follow up.
+                    . It identifies this enquiry — quote it if you reply so we can match your
+                    message to it.
                   </p>
                 ) : null}
                 <button

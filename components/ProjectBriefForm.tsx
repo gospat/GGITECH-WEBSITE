@@ -562,8 +562,8 @@ export default function ProjectBriefForm() {
           {receipt?.reference ? (
             <p className="mt-4 text-sm text-gray-500">
               Your reference is{" "}
-              <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>.
-              Quote it if you need to follow up.
+              <span className="font-mono font-medium text-gray-300">{receipt.reference}</span>. It
+              identifies this enquiry — quote it if you reply so we can match your message to it.
             </p>
           ) : null}
 

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieConsent from "@/components/CookieConsent";
 import PageTransition from "@/components/PageTransition";
-import { absoluteUrl, defaultOgImage, site, siteUrl } from "@/lib/site";
+import { absoluteUrl, contactEmail, defaultOgImage, site, siteUrl } from "@/lib/site";
 import { mono, sans } from "./fonts";
 
 export const metadata: Metadata = {
@@ -88,21 +88,28 @@ const organizationJsonLd = {
   legalName: site.legalName,
   url: siteUrl,
   logo: absoluteUrl("/brand/icon-512.png"),
-  email: site.email,
+  // Structured data is a published address, so it is only emitted once a real
+  // mailbox is configured. A `mailto:` in search results that bounces is worse
+  // than no contact channel at all.
+  ...(contactEmail ? { email: contactEmail } : {}),
   description: site.description,
   address: {
     "@type": "PostalAddress",
     addressLocality: "Lagos",
     addressCountry: "NG",
   },
-  contactPoint: [
-    {
-      "@type": "ContactPoint",
-      contactType: "sales",
-      email: site.email,
-      availableLanguage: ["en"],
-    },
-  ],
+  ...(contactEmail
+    ? {
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            contactType: "sales",
+            email: contactEmail,
+            availableLanguage: ["en"],
+          },
+        ],
+      }
+    : {}),
   knowsAbout: [
     "Software Engineering",
     "System Architecture",

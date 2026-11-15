@@ -14,6 +14,10 @@ import { singleLine } from "@/lib/server/email/text";
  * It confirms receipt and nothing more. It does not promise a response window,
  * does not say the enquiry has been reviewed, and does not echo the brief back
  * — a summary is enough, and the full text stays in the team's mailbox.
+ *
+ * The reference number is described as what it is: an identifier printed on
+ * this exchange, carried in both emails. Nothing here implies it can be looked
+ * up, because no enquiry record is stored.
  */
 
 export const ACKNOWLEDGEMENT_SUBJECT = "We've received your enquiry | GGITECH";
@@ -22,8 +26,7 @@ const FOOTER_NOTE = `You are receiving this email because a form was submitted o
 
 const NEXT_STEPS = [
   "Our team will review your enquiry and match it to the right specialist.",
-  "We will contact you using the details you provided in the form.",
-  "If you need to add anything, reply to this email and quote your reference.",
+  "If you need to add anything, reply to this email and leave your reference in the message.",
 ];
 
 export function enquiryAcknowledgementPreview(enquiry: EnquiryEmailData): string {
@@ -68,7 +71,8 @@ export function EnquiryAcknowledgement({ enquiry }: { enquiry: EnquiryEmailData 
       </EmailParagraph>
 
       <EmailMuted>
-        Please keep the reference number above — it is the quickest way for us to find your enquiry.
+        Please keep the reference number above. It identifies this enquiry — if you reply, leave it
+        in the message so your follow-up can be matched to it.
       </EmailMuted>
     </EmailLayout>
   );

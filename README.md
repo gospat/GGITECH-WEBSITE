@@ -64,9 +64,13 @@ Built with Next.js (App Router), React 19, TypeScript, Tailwind CSS, and Framer 
 Copy the values you need into `.env.local`:
 
 - `NEXT_PUBLIC_SITE_URL` — canonical origin (defaults to `https://ggitech.dev`)
+- `NEXT_PUBLIC_CONTACT_EMAIL` — public mailbox advertised to customers. Leave blank until
+  a real mailbox exists; blank or malformed falls back to the contact form. Inlined at
+  build time, so changing it requires a rebuild.
 - `RESEND_API_KEY` — Resend API key. **Server-side only**, never `NEXT_PUBLIC_`.
 - `RESEND_FROM_EMAIL` — verified sender, e.g. `GGITECH <notifications@ggitech.dev>`
-- `CONTACT_NOTIFICATION_EMAIL` — where enquiry notifications are delivered
+- `CONTACT_NOTIFICATION_EMAIL` — where enquiry notifications are delivered. **Server-side
+  only**; never the same value as `NEXT_PUBLIC_CONTACT_EMAIL`.
 - `CONTACT_REPLY_TO_EMAIL` — reply-to on the customer acknowledgement (defaults to the line above)
 - `CONTACT_AUTO_REPLY_ENABLED` — `true`/`false`; whether customers receive an acknowledgement
 - `TRUSTED_PROXY_HOPS` — number of proxies in front of the app (defaults to `1`)
@@ -74,8 +78,8 @@ Copy the values you need into `.env.local`:
 `.env.example` documents each of these, including why an `@ggitech.dev` address does not
 receive mail just because Resend can send from the domain.
 
-Brand facts (email, address, navigation) live in `lib/site.ts` — change them there, not in
-individual pages.
+Brand facts (address, navigation) live in `lib/site.ts` — change them there, not in
+individual pages. The published contact address is `contactEmail`, exported alongside it.
 
 Sending email is documented in [`docs/email.md`](docs/email.md): domain verification, DNS
 records, template changes, and how to preview the templates locally.

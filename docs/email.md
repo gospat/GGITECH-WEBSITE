@@ -54,8 +54,8 @@ telling someone their enquiry was received when no copy of it exists anywhere.
 
 ## 2. Configuration
 
-All five values are **server-side only**. Never prefix a Resend value with `NEXT_PUBLIC_`;
-anything so named is compiled into the browser bundle.
+The five values below are **server-side only**. Never prefix a Resend value with
+`NEXT_PUBLIC_`; anything so named is compiled into the browser bundle.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
@@ -67,6 +67,38 @@ anything so named is compiled into the browser bundle.
 
 `TRUSTED_PROXY_HOPS` (default `1`) also matters here: it is how the rate limiter decides
 which entry in `X-Forwarded-For` is real, so a forged header cannot buy a fresh bucket.
+
+### The published contact address is separate, and opt-in
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | no | A mailbox we advertise to customers. **Leave blank until a real mailbox exists and has been tested.** |
+
+`RESEND_FROM_EMAIL` and `CONTACT_NOTIFICATION_EMAIL` are *private* destinations: they
+appear only inside a request handler and are never sent to a browser, which is why they
+carry no `NEXT_PUBLIC_` prefix. `NEXT_PUBLIC_CONTACT_EMAIL` is the opposite — it is
+published on purpose, in the contact page's "Email Us" link, in error messages, in
+`app/error.tsx`, in the careers page's mail links, and in the layout's structured data.
+A `NEXT_PUBLIC_` name is the honest label for a value that is meant to be read by the
+browser. Keep the two categories apart: never route a notification through the published
+address, and never publish a notification address.
+
+The published address is **off unless you switch it on**. `lib/site.ts` exports
+`contactEmail`, which is `null` when the variable is blank *or malformed* — an
+`isEmail()` check runs before publication. Every consumer degrades to the contact form
+when it is `null`:
+
+- `/contact` shows "Use the form on this page and we will reply by email" instead of a
+  `mailto:` link, and the failure text drops the "Please email …" sentence.
+- `app/error.tsx` links to `/contact` instead of a `mailto:`.
+- `/careers` links to `/contact` (with the role preserved as a query parameter) instead of
+  a `mailto:`.
+- `/privacy` and `/terms` say "use our contact form" without an address.
+- The layout's `Organization` JSON-LD omits `email` and `contactPoint` entirely.
+
+A half-configured value is therefore safe: a typo resolves to "not configured" rather
+than to a published address that cannot receive mail. Because the value is inlined at
+build time, **changing it requires a rebuild, not a restart.**
 
 ### Runtime, not build time
 
@@ -166,6 +198,10 @@ mail host first.** A Resend-verified domain will happily send from an address th
 receive, which produces silent bounces. Until such a mailbox exists and has been tested,
 do not publish the address. That is why the email templates currently print only the
 website URL, the registered company name and Lagos as the location.
+
+When one exists, set `NEXT_PUBLIC_CONTACT_EMAIL` to it (see §2) and rebuild. That turns on
+the `mailto:` links and the published address in error messages; until then the site
+routes customers to the contact form instead of naming a mailbox nobody reads.
 
 ---
 
