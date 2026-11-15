@@ -30,6 +30,21 @@ readonly CONF="$SCRIPT_DIR/../nginx/ggitech.conf"
 readonly SITE=/etc/nginx/sites-available/ggitech
 readonly WEBROOT=/var/www/ggitech-acme
 readonly CERT_DIR=/etc/letsencrypt/live/ggitech.dev
+
+# A stand-in for the Bells certificate portal's vhost, used only by section 7.
+# It reproduces that vhost's `listen` directive and nothing else: the portal's
+# own configuration is never read, written or guessed at beyond the one line
+# that shares the 443 socket with this one.
+readonly PORTAL_NAME=certificate.bellsuniversity.edu.ng
+readonly PORTAL_CERT_DIR="/etc/letsencrypt/live/$PORTAL_NAME"
+readonly PORTAL_SITE=/etc/nginx/sites-available/portal-fixture
+# `sites-enabled/*` is expanded in sorted order, so this name is what makes the
+# portal fixture load before the GGITECH vhost -- the order production is in,
+# and the order the reported warning depends on.
+readonly PORTAL_FIRST=aaa-portal-fixture
+
+readonly VARIANT_DIR=/tmp/ggitech-variants
+readonly NGINX_T_LOG=/tmp/ggitech-nginx-t.log
 readonly UPSTREAM_PORT=3213
 readonly UPSTREAM_LOG=/tmp/ggitech-upstream.log
 readonly UPSTREAM_PID=/tmp/ggitech-upstream.pid
@@ -39,6 +54,9 @@ readonly CANONICAL=https://ggitech.dev
 
 passed=0
 failed=0
+# Set by warn_report; the current nginx -t protocol-option warnings.
+warn_lines=""
+warn_count=0
 
 ok() { printf '  ok    %s\n' "$1"; passed=$((passed + 1)); }
 no() {
@@ -67,6 +85,8 @@ cleanup() {
   if [[ -f $UPSTREAM_PID ]]; then
     kill "$(cat "$UPSTREAM_PID")" 2>/dev/null || true
   fi
+  rm -f -- "/etc/nginx/sites-enabled/$PORTAL_FIRST" "$PORTAL_SITE"
+  rm -rf -- "$VARIANT_DIR"
 }
 trap cleanup EXIT
 
@@ -139,7 +159,7 @@ start_upstream() {
   python3 "$UPSTREAM_SCRIPT" &
   echo $! >"$UPSTREAM_PID"
   for _ in $(seq 1 50); do
-    if curl -fsS -o /dev/null "http://127.0.0.1:$UPSTREAM_PORT/"; then break; fi
+    if curl -fsS -o /dev/null "http://127.0.0.1:$UPSTREAM_PORT/" 2>/dev/null; then break; fi
     sleep 0.1
   done
 }
@@ -170,22 +190,22 @@ else
   no "the installed vhost differs from the repository copy"
 fi
 
-if nginx -t >/tmp/ggitech-nginx-t.log 2>&1; then
+if nginx -t >"$NGINX_T_LOG" 2>&1; then
   ok "nginx -t accepts the configuration"
 else
   no "nginx -t rejected the configuration"
-  cat /tmp/ggitech-nginx-t.log
+  cat "$NGINX_T_LOG"
   exit 1
 fi
 
-if grep -q 'syntax is ok' /tmp/ggitech-nginx-t.log; then
+if grep -q 'syntax is ok' "$NGINX_T_LOG"; then
   ok "nginx -t reports the syntax is ok"
 else
   no "nginx -t did not report 'syntax is ok'"
 fi
 
-if grep -qi 'warn\|error' /tmp/ggitech-nginx-t.log; then
-  no "nginx -t emitted a warning or error: $(grep -i 'warn\|error' /tmp/ggitech-nginx-t.log)"
+if grep -qi 'warn\|error' "$NGINX_T_LOG"; then
+  no "nginx -t emitted a warning or error: $(grep -i 'warn\|error' "$NGINX_T_LOG")"
 else
   ok "nginx -t emitted no warnings"
 fi
@@ -201,7 +221,7 @@ fi
 start_upstream
 nginx
 for _ in $(seq 1 50); do
-  if curl -fsS -k -o /dev/null --resolve ggitech.dev:443:127.0.0.1 "$CANONICAL/"; then break; fi
+  if curl -fsS -k -o /dev/null --resolve ggitech.dev:443:127.0.0.1 "$CANONICAL/" 2>/dev/null; then break; fi
   sleep 0.1
 done
 ok "nginx started"
@@ -324,7 +344,120 @@ else
 fi
 
 # --------------------------------------------------------------------------
-printf '\n----------------------------------------\n'
+# 7. The 443 listening socket, the portal sharing it, and the warning
+# --------------------------------------------------------------------------
+# On nginx 1.24 the `http2` parameter is a property of the listening socket,
+# not of a server block: "protocol options redefined for 0.0.0.0:443" is nginx
+# saying that the HTTPS blocks sharing that socket did not agree on one clear
+# set of protocol options. The set that matters is the socket's, and it is the
+# union of every declaration -- so a block that leaves `http2` out is still
+# answered over h2. This section proves both halves of that: the pre-fix form
+# of the file still reproduces the warning, the shipped form does not, and the
+# socket still negotiates HTTP/2 for both applications.
+printf '\n== 7. The 443 listening socket and the protocol-option warning\n'
+
+# A stand-in for the portal's vhost. Only the `listen` line is reproduced,
+# because only that line is shared: the portal's real file is never read,
+# written or modified. Loaded before the GGITECH vhost, as on the server.
+mkdir -p -- "$PORTAL_CERT_DIR"
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+  -keyout "$PORTAL_CERT_DIR/privkey.pem" \
+  -out "$PORTAL_CERT_DIR/fullchain.pem" \
+  -subj "/CN=$PORTAL_NAME" \
+  -addext "subjectAltName=DNS:$PORTAL_NAME" 2>/dev/null
+
+cat >"$PORTAL_SITE" <<EOF
+# Disposable stand-in for the Bells certificate portal vhost. Created only by
+# deploy/tests/run-nginx-validation.sh to occupy the 443 socket; it is not the
+# portal's configuration.
+server {
+    listen 443 ssl;
+    server_name $PORTAL_NAME;
+
+    ssl_certificate     $PORTAL_CERT_DIR/fullchain.pem;
+    ssl_certificate_key $PORTAL_CERT_DIR/privkey.pem;
+
+    location / {
+        default_type "text/plain; charset=utf-8";
+        return 200 "portal fixture\n";
+    }
+}
+EOF
+ln -sfn -- "$PORTAL_SITE" "/etc/nginx/sites-enabled/$PORTAL_FIRST"
+
+warn_report() { # run nginx -t, record any protocol-option warnings
+  nginx -t >"$NGINX_T_LOG" 2>&1 || true
+  warn_lines="$(grep -i 'protocol options redefined' "$NGINX_T_LOG" || true)"
+  if [[ -n $warn_lines ]]; then
+    warn_count="$(grep -ci 'protocol options redefined' "$NGINX_T_LOG")"
+  else
+    warn_count=0
+  fi
+}
+
+# The form this file shipped before the correction: `http2` restored on the
+# www listeners only, by matching `listen 443 ssl;` and `listen [::]:443 ssl;`
+# (the apex listeners end in `ssl http2;` and so are untouched).
+mkdir -p -- "$VARIANT_DIR"
+readonly REGRESSED="$VARIANT_DIR/ggitech-www-http2.conf"
+sed -E 's/^([[:space:]]*listen (\[::\]:)?443 ssl);$/\1 http2;/' "$CONF" >"$REGRESSED"
+
+install -o root -g root -m 0644 "$REGRESSED" "$SITE"
+warn_report
+if ((warn_count > 0)); then
+  ok "the pre-fix configuration reproduces the warning ($(head -n1 <<<"$warn_lines" | sed 's/^.*\[warn\] //'))"
+else
+  no "the pre-fix configuration did not reproduce the warning on $(nginx -v 2>&1)"
+fi
+
+if [[ $warn_lines == *'0.0.0.0:443'* ]]; then
+  ok "the reproduced warning names 0.0.0.0:443, as reported"
+else
+  no "the reproduced warning names an unexpected address: $warn_lines"
+fi
+
+# The shipped file, with the same portal fixture loaded.
+install -o root -g root -m 0644 "$CONF" "$SITE"
+warn_report
+if ((warn_count == 0)); then
+  ok "the shipped configuration raises no protocol-option warning"
+else
+  no "the shipped configuration still warns: $warn_lines"
+fi
+
+if nginx -t >"$NGINX_T_LOG" 2>&1; then
+  ok "the shipped configuration is still accepted with the portal fixture loaded"
+else
+  no "the shipped configuration was rejected with the portal fixture loaded"
+  cat "$NGINX_T_LOG"
+fi
+
+# Reload onto the shipped configuration and confirm HTTP/2 is unaffected.
+start_upstream
+nginx -s reload
+for _ in $(seq 1 50); do
+  if curl -fsS -k -o /dev/null --resolve ggitech.dev:443:127.0.0.1 "$CANONICAL/" 2>/dev/null; then break; fi
+  sleep 0.1
+done
+
+# `%{http_version}` reports the version negotiated by ALPN, which is the thing
+# the removed parameter used to control.
+http_version() { # http_version <url> <curl-resolve>
+  curl -sS -k -o /dev/null -w '%{http_version}' --http2 --resolve "$2" "$1"
+}
+
+expect "https://ggitech.dev negotiates HTTP/2" "2" \
+  "$(http_version "$CANONICAL/" "ggitech.dev:443:127.0.0.1")"
+expect "https://www.ggitech.dev negotiates HTTP/2" "2" \
+  "$(http_version "https://www.ggitech.dev/" "www.ggitech.dev:443:127.0.0.1")"
+expect "the portal shares the socket and negotiates HTTP/2" "2" \
+  "$(http_version "https://$PORTAL_NAME/" "$PORTAL_NAME:443:127.0.0.1")"
+
+# Negotiating h2 is only useful if the portal still answers on that socket.
+expect "the portal still answers on the shared socket" "200" \
+  "$(curl -sS -k -o /dev/null -w '%{http_code}' --resolve "$PORTAL_NAME:443:127.0.0.1" "https://$PORTAL_NAME/")"
+
+# --------------------------------------------------------------------------
 printf 'passed: %d\n' "$passed"
 printf 'failed: %d\n' "$failed"
 printf '\n'

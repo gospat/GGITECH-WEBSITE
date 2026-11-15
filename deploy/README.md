@@ -9,6 +9,14 @@ systemd unit, its own nginx `server` block and its own database. The single
 shared resource is the nginx process itself, and adding a vhost to it is a
 graceful reload.
 
+One thing is genuinely shared with it, though: the HTTPS listening socket for
+port 443. Every HTTPS `server` block on the host answers on that one socket, and
+nginx 1.24 treats the protocol options on a socket (`ssl`, `http2`) as belonging
+to the socket rather than to a block. That is why the `listen` lines in
+`deploy/nginx/ggitech.conf` are arranged the way they are — see
+*The 443 listening socket, and the protocol-option warning* under Testing, and
+step 9 before editing them.
+
 ## This installs over a server that is already serving traffic
 
 `https://ggitech.dev` is already served by an existing nginx virtual host on
@@ -74,9 +82,9 @@ The rules that follow from that:
 | `deploy/bin/ggitech-activate` | Root-owned activation script — the only privileged command `deploy` may run |
 | `deploy/sudoers/ggitech-activate` | The single sudoers rule that grants it |
 | `deploy/systemd/ggitech.service` | The application service |
-| `deploy/nginx/ggitech.conf` | Reverse proxy for the canonical host `ggitech.dev`, plus the permanent redirects onto it |
+| `deploy/nginx/ggitech.conf` | Reverse proxy for the canonical host `ggitech.dev`, the permanent redirects onto it, and the single `http2` declaration for the 443 socket it shares with the portal |
 | `deploy/tests/run-activation-tests.sh` | Linux-only integration tests for the activation and rollback state machine |
-| `deploy/tests/run-nginx-validation.sh` | Linux-only validation of the vhost against a real nginx: canonical redirects, proxy headers, ACME and the fallback |
+| `deploy/tests/run-nginx-validation.sh` | Linux-only validation of the vhost against a real nginx: canonical redirects, proxy headers, ACME, the fallback, and the 443 socket's HTTP/2 negotiation |
 
 ---
 
@@ -492,6 +500,14 @@ is caught before anything is reloaded. `reload` is graceful: in-flight
 connections, including the portal's, are served by the old workers until they
 finish.
 
+`nginx -t` must also be **silent**. This vhost shares the 443 socket with the
+portal, and nginx 1.24 warns when two blocks on one socket declare different
+protocol options — which is what `protocol options redefined for 0.0.0.0:443`
+means. The repository's file is arranged so that does not happen: the apex block
+declares `listen 443 ssl http2`, the www block declares `listen 443 ssl`, and
+HTTP/2 is a property of the socket, so all three hosts — apex, www and the
+portal — still negotiate h2. See Troubleshooting before "fixing" that warning.
+
 The old configuration is still at `$SITE.bak.<timestamp>` afterwards. Keep it
 until step 10 has passed, then remove it.
 
@@ -566,6 +582,21 @@ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' https://ggitech.dev/
 Every line of the first block must read `301 https://ggitech.dev/...`, and the
 last line must be `200` with an empty redirect URL. A `301` on the last line
 would mean the canonical host is redirecting to itself.
+
+Then confirm that all three names still negotiate HTTP/2 on the shared socket.
+`%{http_version}` reports what ALPN settled on, so it must be `2` in each case —
+including the portal, whose `server` block does not mention `http2` at all:
+
+```bash
+for url in https://ggitech.dev/ https://www.ggitech.dev/ \
+           https://certificate.bellsuniversity.edu.ng/; do
+  printf '%-46s -> ' "$url"
+  curl -sS -k -o /dev/null -w '%{http_version}\n' --http2 "$url"
+done
+```
+
+A `1.1` anywhere would mean the socket lost HTTP/2 — most likely because
+`http2` was removed from the apex block as well as the www block.
 
 `The certificate is intact and still renews` is the check that matters for the
 ACME webroot installed in step 9: a wrong `root` keeps serving the
@@ -730,6 +761,7 @@ A `200` alone is not treated as success. Activation requires **all** of:
 | exit `1`, "production environment file is missing" | Step 2 was skipped, or the file was moved | Re-run step 2 — it will not truncate the existing file |
 | exit `1`, "is missing or is a symlink" | A base directory is absent or was replaced by a link | Re-run step 1; check with `ls -ld /var/www/ggitech /var/www/ggitech/releases` |
 | Two GGITECH vhosts enabled | A second `ggitech.conf` was added | Re-run step 9; it removes the duplicate after confirming it is a GGITECH vhost |
+| `nginx -t` warns `protocol options redefined for 0.0.0.0:443` | A block on the shared 443 socket declared a different set of protocol options — in practice `http2` repeated on the www block | Re-run step 9 with the repository's vhost: only the apex block declares `http2`, and the www block declares `ssl` alone. Do not "fix" it by removing `http2` from the apex block instead — that would turn HTTP/2 off for every host on the socket, the portal included |
 | The public site returns 502/503 straight after installation | Step 9 ran before step 8, so the vhost proxies to a port with nothing on it | The application has not been deployed yet — complete step 8. To restore the old site meanwhile, put `$SITE.bak.<ts>` back and reload nginx |
 | Site returns 502 "briefly unavailable" | Normal restart window, or a crash loop | If it persists, `systemctl status ggitech` |
 | `sudo: a password is required` | NOPASSWD rule missing or wrong | Reinstall step 4; the workflow always calls `sudo -n` |
@@ -905,26 +937,86 @@ string preserved, and the www target not itself naming www, which is what would
 make the redirect loop; that the apex answers `200` with no redirect and is
 proxied to the upstream, carrying `host=ggitech.dev`, `xfp=https` and a
 `127.0.0.1` client address; that the ACME challenge returns the token for both
-names; and that a refused upstream is answered by the fallback with
-`Retry-After`, and not by the stock nginx error document.
+names; that a refused upstream is answered by the fallback with `Retry-After`,
+and not by the stock nginx error document; and that the 443 socket still
+negotiates HTTP/2 (section 7 below).
+
+#### The 443 listening socket, and the protocol-option warning
+
+On nginx 1.24 the `http2` parameter on `listen` is not a property of a `server`
+block: it is a protocol option of the **listening socket**, and every HTTPS
+virtual host on the host shares the one socket for `443`. Declaring a
+*different* set of options for the same address from a second block is what
+nginx calls a redefinition, and since 1.24 it warns:
+
+```
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/sites-enabled/…:200
+```
+
+The warning was reported at the second GGITECH HTTPS block — the www block —
+because the Bells portal vhost claims the same socket with a shorter set
+(`listen 443 ssl;`), the apex block then declared `ssl http2`, and the www block
+repeated `ssl http2`. Three declarations, two different sets, one socket.
+
+`ssl` on its own is the case nginx *does* allow: options may be repeated for
+clarity as long as the repeat is a subset of the socket's, which is what the
+apex block already established. So the www block now declares `listen 443 ssl;`
+— no `http2` — and the warning is gone. Nothing about HTTP/2 changes, because
+the option the socket uses is the union of everything declared for it: the apex
+block's `http2` is still in effect for every host on the socket, so
+`https://ggitech.dev`, `https://www.ggitech.dev` **and** the portal all still
+negotiate h2. The portal's own configuration is not touched, and HTTP/2 support
+is not reduced.
+
+Section 7 of `run-nginx-validation.sh` proves this rather than asserting it. It
+stands up a fixture vhost that reproduces only the portal's `listen` line
+(loading before the GGITECH vhost, as on the server) and then:
+
+1. reinstates `http2` on the www listeners, byte-for-byte the form that was
+   shipped before this change, and asserts the warning reappears and names
+   `0.0.0.0:443`;
+2. installs the shipped file with the same fixture loaded and asserts zero
+   protocol-option warnings;
+3. asserts `%{http_version}` is `2` for `ggitech.dev`, `www.ggitech.dev` and
+   `certificate.bellsuniversity.edu.ng`, and that the portal still answers `200`
+   on the shared socket.
+
+The fixture is a stand-in, not the portal: the suite never reads, writes or
+modifies the portal's configuration, and the fixture is removed on exit.
 
 #### Execution status
 
 Executed in a disposable `ubuntu-24.04` GitHub Actions runner
 (nginx/1.24.0). It has **never been run on the DigitalOcean host**, and the
-production nginx configuration was not read or written by it.
+production nginx configuration was not read or written by it. A passing run ends
+by re-asserting `git diff --exit-code -- deploy/nginx/ggitech.conf`, so it also
+proves the vhost was not edited to make itself pass.
 
-The first run passed 23 assertions and failed 4. All four were defects in the
-test, not in the vhost, and the vhost was left unchanged:
+The suite as it stands — the canonical-domain assertions plus section 7 —
+reports **36 assertions passed, 0 failed**, and the warning is reproduced and
+then eliminated inside the one run:
+
+| Step | Observed |
+| --- | --- |
+| The pre-fix form (`http2` on the www listeners) | `[warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/sites-enabled/ggitech:223` |
+| The shipped form, same portal fixture loaded | no protocol-option warning, and `nginx -t` still accepts it |
+| `https://ggitech.dev`, `https://www.ggitech.dev`, `https://certificate.bellsuniversity.edu.ng` | `%{http_version}` is `2` for all three |
+| The portal's stand-in on the shared socket | answers `200` |
+
+The nginx on that runner is `nginx/1.24.0 (Ubuntu)` — the same version as
+production, and the version that introduced the warning.
+
+An earlier version of the suite, before section 7 existed, passed 23 assertions
+and failed 4. All four were defects in the test, not in the vhost, and the vhost
+was left unchanged:
 
 | Failure | Cause | Correction |
 | --- | --- | --- |
 | The ACME token was compared as `acme-token-ok\n` | The fixture wrote the token through `printf '%s\n'`; nginx serves the file byte for byte | The fixture writes it with `printf '%s'`, with no trailing newline |
 | Two assertions expected `503` for a refused upstream, and one missed `Retry-After: 3` | The fallback really does answer `502`, and HTTP/2 lower-cases response header names | The test now asserts `502` and folds the header dump before matching; the two runbook claims that had said `503` were corrected to describe what nginx does |
 
-The corrected suite then reported **28 assertions passed, 0 failed** — and the
-run ends by re-asserting `git diff --exit-code -- deploy/nginx/ggitech.conf`, so
-a passing run also proves the vhost was not edited to make itself pass.
+The corrected suite of that time then reported 28 assertions passed, 0 failed.
+Section 7 was added on top of it, which is where the 36 above comes from.
 
 The status is `502` because `error_page 502 @unavailable;` — without the `=` form
 — redirects the response *body* to the named location but keeps the code nginx
@@ -1098,11 +1190,19 @@ release that fails its checks is automatically rolled back.
 
 ## Known limitations
 
-- **Merge the workflow to `main` and automatic deployment is armed.** That is
-  the intended behaviour, and also the reason the first deploy should be a
-  deliberate decision rather than a side effect of merging. Attach required
-  reviewers to the `production` environment in repository settings to put a
-  manual gate in front of it; the workflow already references that environment.
+- **On nginx 1.25.1 and newer the `http2` parameter on `listen` is deprecated**
+  in favour of a bare `http2 on;` directive, and nginx warns about the old form.
+  Production is 1.24.0, where the parameter is the only form available, so the
+  vhost uses it. After a host upgrade the apex block's two `listen ... http2`
+  lines should lose the parameter and gain `http2 on;` — and the same
+  socket-level reasoning applies to the warning that replaces this one, so do
+  not simply move the parameter to the www block.
+- **The two applications share one HTTPS socket, and that is not optional.** A
+  client that asks for `certificate.bellsuniversity.edu.ng` on 443 lands on the
+  same socket as `ggitech.dev`; the vhosts are told apart by SNI and
+  `server_name`, not by separate listeners. Anything that changes the protocol
+  options for that socket therefore changes them for the portal too, which is
+  why the portal's file must not be edited to chase a warning originating here.
 - Deployments are serialised by the `production-deploy` concurrency group, and
   they are never cancelled: interrupting a run between the symlink swap and the
   health check would leave a release in an unknown state. A second push queues
